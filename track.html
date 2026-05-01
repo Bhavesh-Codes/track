@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KARM - Time Tracking</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Chart.js Dark Theme -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+    <style>
+        /* CSS Variables - Dark Minimalist Theme */
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent: #0071e3;
+            --border: #2a2a2a;
+            
+            /* Category Colors - Solid, No Gradients */
+            --productive: #15803d;       /* Dark Green */
+            --semi-productive: #bef264;  /* Semi Productive */
+            --neutral: #64748b;          /* Neutral (Slate) */
+            --gym: #ec4899;              /* Gym (Pink) */
+            --errands: #eab308;          /* Errands (Yellow) */
+            --unproductive: #f97316;     /* Unproductive */
+            --wasted: #ef4444;           /* Wasted */
+            --sleep: #6366f1;            /* Sleep */
+            --unlogged: #374151;         /* Unlogged */
+        }
+
+        /* Base Styles */
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        /* Typography Classes */
+        .hero-number { 
+            font-size: 64px; 
+            font-weight: 700; 
+            line-height: 1; 
+            font-family: "SF Mono", "Monaco", monospace;
+        }
+        .section-heading { 
+            font-size: 32px; 
+            font-weight: 600; 
+            line-height: 1.2; 
+        }
+        .subsection { 
+            font-size: 20px; 
+            font-weight: 500; 
+            line-height: 1.3; 
+        }
+        .body-text { 
+            font-size: 16px; 
+            font-weight: 400; 
+            line-height: 1.5; 
+        }
+        .small-label { 
+            font-size: 14px; 
+            font-weight: 400; 
+            color: var(--text-secondary);
+        }
+
+        /* Widget Card - Modular Component */
+        .widget-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        /* Timeline Block Hover - Subtle & Fast */
+        .timeline-block {
+            transition: all 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .timeline-block:hover {
+            transform: scale(1.03);
+            filter: brightness(1.1);
+        }
+        .timeline-block:active {
+            transform: scale(0.98);
+        }
+
+        /* Button Styles */
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 200ms;
+        }
+        .btn-primary:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+
+        /* Modal Animations */
+        .modal-fade-in {
+            animation: modalFadeIn 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .toast-slide-up {
+            animation: toastSlideUp 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        @keyframes toastSlideUp {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+        const { useState, useEffect, useRef, useMemo, useCallback, memo } = React;
+
+        // --- Icons (Minimalist SVGs) ---
+        const Icon = ({ children, className, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`w-5 h-5 ${className}`} {...props}>{children}</svg>
+        );
+        const Clock = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
+        const Plus = (props) => <Icon {...props}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+        const Moon = (props) => <Icon {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></Icon>;
+        const TrendingUp = (props) => <Icon {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></Icon>;
+        const ChevronDown = (props) => <Icon {...props}><polyline points="6 9 12 15 18 9"/></Icon>;
+        const ChevronUp = (props) => <Icon {...props}><polyline points="18 15 12 9 6 15"/></Icon>;
+        const ChevronLeft = (props) => <Icon {...props}><polyline points="15 18 9 12 15 6"/></Icon>;
+        const ChevronRight = (props) => <Icon {...props}><polyline points="9 18 15 12 9 6"/></Icon>;
+        const Target = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></Icon>;
+        const Trash = (props) => <Icon {...props}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></Icon>;
+        const Copy = (props) => <Icon {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></Icon>;
+        const Volume2 = (props) => <Icon {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></Icon>;
+        const VolumeX = (props) => <Icon {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></Icon>;
+        const Zap = (props) => <Icon {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+        
+        // Category Icons
+        const Briefcase = (props) => <Icon {...props}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></Icon>;
+        const Activity = (props) => <Icon {...props}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></Icon>;
+        const Coffee = (props) => <Icon {...props}><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></Icon>;
+        const ShoppingCart = (props) => <Icon {...props}><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></Icon>;
+        const Smartphone = (props) => <Icon {...props}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></Icon>;
+        const XCircle = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></Icon>;
+        const HelpCircle = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></Icon>;
+
+        // --- Constants ---
+        const CATEGORIES = {
+            productive: { label: 'Productive', color: '#15803d', text: 'text-[#15803d]', icon: Briefcase }, // Dark Green
+            semiProductive: { label: 'Semi Productive', color: '#bef264', text: 'text-[#bef264]', icon: Activity }, 
+            neutral: { label: 'Neutral', color: '#64748b', text: 'text-[#64748b]', icon: Coffee }, 
+            gym: { label: 'Gym', color: '#ec4899', text: 'text-[#ec4899]', icon: Zap }, 
+            errands: { label: 'Errands', color: '#eab308', text: 'text-[#eab308]', icon: ShoppingCart },
+            unproductive: { label: 'Unproductive', color: '#f97316', text: 'text-[#f97316]', icon: Smartphone },
+            wasted: { label: 'Wasted', color: '#ef4444', text: 'text-[#ef4444]', icon: XCircle },
+            sleep: { label: 'Sleep', color: '#6366f1', text: 'text-[#6366f1]', icon: Moon },
+            unlogged: { label: 'Unlogged', color: '#374151', text: 'text-[#374151]', icon: HelpCircle }
+        };
+
+        // --- Helper Functions ---
+        const getDateKey = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const getDayStats = (date, logs) => {
+            const dateKey = getDateKey(date);
+            const stats = { productive: 0, semiProductive: 0, neutral: 0, gym: 0, errands: 0, unproductive: 0, wasted: 0, sleep: 0, unlogged: 0 };
+            for (let hour = 0; hour < 24; hour++) {
+                const key = `${dateKey}_${hour}`;
+                const log = logs[key];
+                if (log && stats[log.category] !== undefined) stats[log.category]++;
+                else stats.unlogged++;
+            }
+            return stats;
+        };
+
+        const getProductivityScore = (stats) => {
+            const totalLogged = 24 - stats.unlogged - stats.sleep;
+            if (totalLogged <= 0) return 0;
+            // Gym and Productive are fully productive. Semi-productive and Errands are half. Neutral contributes 0.
+            const scorePoints = stats.productive + stats.gym + (stats.semiProductive * 0.5) + (stats.errands * 0.5);
+            return Math.round((scorePoints / totalLogged) * 100);
+        };
+
+        const calculateStreak = (logs) => {
+            let streak = 0;
+            const today = new Date();
+            for (let i = 0; i < 365; i++) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                const stats = getDayStats(d, logs);
+                if (stats.unlogged < 20) streak++;
+                else if (i > 0) break;
+            }
+            return streak;
+        };
+
+        // --- Components ---
+        const AnimatedNumber = memo(({ value }) => {
+            const [display, setDisplay] = useState(0);
+            useEffect(() => {
+                let start = display;
+                const end = value;
+                const duration = 1000;
+                const startTime = performance.now();
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const ease = 1 - Math.pow(1 - progress, 4);
+                    setDisplay(Math.floor(start + (end - start) * ease));
+                    if (progress < 1) requestAnimationFrame(animate);
+                };
+                requestAnimationFrame(animate);
+            }, [value]);
+            return <span className="font-mono">{display}</span>;
+        });
+
+        // Digital Clock
+        const DigitalClock = () => {
+            const [time, setTime] = useState(new Date());
+
+            useEffect(() => {
+                const timer = setInterval(() => setTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="font-mono text-3xl font-bold tracking-wider text-[var(--text-primary)]">
+                    {time.toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }).toUpperCase()}
+                </div>
+            );
+        };
+
+        // Mini Calendar
+        const MiniCalendar = ({ logs, currentMonth, onSelectDate, onPrevMonth, onNextMonth }) => {
+            const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+            const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+            const emptyDays = Array.from({ length: firstDay }, (_, i) => i);
+
+            return (
+                <div className="widget-card">
+                    <div className="flex justify-between items-center mb-4">
+                        <button onClick={onPrevMonth} className="p-1 hover:bg-[var(--bg-tertiary)] rounded text-[var(--text-secondary)] hover:text-white">
+                            <ChevronLeft size={16} />
+                        </button>
+                        <h3 className="section-heading text-lg leading-none">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                        <button onClick={onNextMonth} className="p-1 hover:bg-[var(--bg-tertiary)] rounded text-[var(--text-secondary)] hover:text-white">
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <span key={d} className="text-[var(--text-secondary)] font-bold py-1">{d}</span>)}
+                        {emptyDays.map(d => <div key={`empty-${d}`} />)}
+                        {days.map(day => {
+                            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                            const stats = getDayStats(date, logs);
+                            const score = getProductivityScore(stats);
+                            const hasLogs = stats.unlogged < 24;
+                            const intensity = score > 80 ? 'bg-[#15803d]' : score > 60 ? 'bg-[#bef264]' : score > 40 ? 'bg-[#06b6d4]' : score > 20 ? 'bg-[#f59e0b]' : 'bg-[#374151]';
+                            
+                            const isSelected = getDateKey(date) === getDateKey(currentMonth);
+
+                            return (
+                                <div 
+                                    key={day} 
+                                    onClick={() => onSelectDate(date)}
+                                    className={`aspect-square rounded-md flex items-center justify-center cursor-pointer transition-colors 
+                                        ${hasLogs ? intensity : 'bg-[var(--bg-tertiary)]'} 
+                                        ${hasLogs ? 'text-white' : 'text-[var(--text-secondary)] hover:bg-[#333]'}
+                                        ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
+                                    `}
+                                >
+                                    {day}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        const DonutChart = memo(({ data, totalCapacity }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (chartInstance.current) chartInstance.current.destroy();
+                const ctx = chartRef.current.getContext('2d');
+                
+                chartInstance.current = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.values(CATEGORIES).filter(c => c.label !== 'Unlogged').map(c => c.label),
+                        datasets: [{
+                            data: Object.keys(CATEGORIES).filter(k => k !== 'unlogged').map(k => data[k] || 0),
+                            backgroundColor: Object.values(CATEGORIES).filter(c => c.label !== 'Unlogged').map(c => c.color),
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: 'rgba(26, 26, 26, 0.95)',
+                                titleColor: '#ffffff',
+                                bodyColor: '#e5e5e5',
+                                borderColor: '#2a2a2a',
+                                borderWidth: 1,
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: true,
+                                titleFont: { size: 14, weight: 'bold', family: '-apple-system, BlinkMacSystemFont, "Segoe UI"' },
+                                bodyFont: { size: 13, family: 'SF Mono, Monaco, monospace' },
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.raw || 0;
+                                        // DONUT LOGIC: Based on Total Capacity (24h or 168h)
+                                        const percentage = totalCapacity > 0 ? Math.round((value / totalCapacity) * 100) : 0;
+                                        return `${value}h (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '70%',
+                        animation: {
+                            duration: 400
+                        }
+                    }
+                });
+                return () => chartInstance.current?.destroy();
+            }, [data, totalCapacity]);
+
+            return <canvas ref={chartRef} className="w-full h-full" />;
+        });
+
+        const TrendChart = memo(({ logs }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                const last30Days = Array.from({ length: 30 }, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (29 - i));
+                    return d;
+                });
+
+                const scores = last30Days.map(d => getProductivityScore(getDayStats(d, logs)));
+                const labels = last30Days.map(d => d.getDate());
+
+                if (chartInstance.current) chartInstance.current.destroy();
+                const ctx = chartRef.current.getContext('2d');
+                
+                chartInstance.current = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Productivity',
+                            data: scores,
+                            borderColor: '#0071e3',
+                            backgroundColor: 'transparent',
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#0071e3'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { 
+                                min: 0, max: 100, 
+                                ticks: { color: 'var(--text-secondary)' },
+                                grid: { color: 'var(--border)' }
+                            },
+                            x: { 
+                                ticks: { color: 'var(--text-secondary)' },
+                                grid: { color: 'var(--border)' }
+                            }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+                return () => chartInstance.current?.destroy();
+            }, [logs]);
+
+            return <canvas ref={chartRef} className="w-full h-full" />;
+        });
+
+        function App() {
+            // --- State ---
+            const [logs, setLogs] = useState(() => {
+                const raw = localStorage.getItem('karm_data');
+                if (!raw) return {};
+                const data = JSON.parse(raw);
+                let migrated = false;
+                
+                // Migrate legacy categories to new structure seamlessly
+                Object.keys(data).forEach(k => {
+                    if (data[k].category === 'fitness') { data[k].category = 'neutral'; migrated = true; }
+                    else if (data[k].category === 'neutral') { data[k].category = 'semiProductive'; migrated = true; }
+                });
+                if (migrated) {
+                    localStorage.setItem('karm_data', JSON.stringify(data));
+                }
+                return data;
+            });
+            const [goals, setGoals] = useState(() => JSON.parse(localStorage.getItem('karm_goals') || '{"productive": 8, "sleep": 7}'));
+            const [viewDate, setViewDate] = useState(new Date());
+            const [timerOn, setTimerOn] = useState(() => localStorage.getItem('karm_timer') === 'true');
+            const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('karm_sound') === 'true');
+            const [analyticsOpen, setAnalyticsOpen] = useState(false);
+            const [activeTab, setActiveTab] = useState('trends');
+            const [modals, setModals] = useState({ log: false, sleep: false, goals: false });
+            const [selectedLogHour, setSelectedLogHour] = useState(null);
+            
+            // Notification State
+            const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+            
+            // Timer State
+            const [countdown, setCountdown] = useState('');
+            const lastPromptHourRef = useRef(-1);
+            
+            // Audio Refs
+            const audioCtxRef = useRef(null);
+            const alarmOscillatorRef = useRef(null);
+
+            // Log modal state
+            const [logText, setLogText] = useState('');
+            const [logCategory, setLogCategory] = useState('productive');
+
+            // Sleep modal state
+            const [sleepSelection, setSleepSelection] = useState([]);
+
+            // Goals modal state
+            const [tempGoals, setTempGoals] = useState({ productive: 8, sleep: 7 });
+
+            // --- Effects ---
+            useEffect(() => localStorage.setItem('karm_data', JSON.stringify(logs)), [logs]);
+            useEffect(() => localStorage.setItem('karm_goals', JSON.stringify(goals)), [goals]);
+            useEffect(() => localStorage.setItem('karm_timer', timerOn), [timerOn]);
+            useEffect(() => localStorage.setItem('karm_sound', soundEnabled), [soundEnabled]);
+
+            // --- Auto-Scroll Effect ---
+            useEffect(() => {
+                if (getDateKey(viewDate) === getDateKey(new Date())) {
+                    setTimeout(() => {
+                        const el = document.getElementById(`hour-${new Date().getHours()}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+            }, [viewDate]);
+
+            // --- Toast Logic ---
+            const showToast = useCallback((message, type = 'success') => {
+                setToast({ show: true, message, type });
+                setTimeout(() => {
+                    setToast(prev => ({ ...prev, show: false }));
+                }, 3000);
+            }, []);
+
+            // --- Alarm Logic ---
+            const stopAlarm = useCallback(() => {
+                if (alarmOscillatorRef.current) {
+                    try { alarmOscillatorRef.current.stop(); } catch(e) {}
+                    try { alarmOscillatorRef.current.disconnect(); } catch(e) {}
+                    alarmOscillatorRef.current = null;
+                }
+                if (audioCtxRef.current) {
+                    try { audioCtxRef.current.close(); } catch(e) {}
+                    audioCtxRef.current = null;
+                }
+            }, []);
+
+            const startAlarm = useCallback(() => {
+                if (!soundEnabled) return;
+                stopAlarm();
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContext();
+                audioCtxRef.current = ctx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                const now = ctx.currentTime;
+                for(let i=0; i < 120; i++) {
+                    gain.gain.setValueAtTime(0.1, now + i * 0.5);
+                    gain.gain.setValueAtTime(0, now + i * 0.5 + 0.25);
+                }
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                alarmOscillatorRef.current = osc;
+            }, [soundEnabled, stopAlarm]);
+
+            // --- Timer / Hourly Check Effect ---
+            useEffect(() => {
+                if (!timerOn) {
+                    setCountdown('');
+                    stopAlarm();
+                    return;
+                }
+                const tick = () => {
+                    const now = new Date();
+                    const min = now.getMinutes();
+                    const sec = now.getSeconds();
+                    const currentHour = now.getHours();
+                    const totalSec = 3600 - (min * 60 + sec);
+                    const m = Math.floor(totalSec / 60);
+                    const s = totalSec % 60;
+                    setCountdown(`Focus! Next log in: ${m}:${s.toString().padStart(2, '0')}`);
+                    if (min === 0 && lastPromptHourRef.current !== currentHour) {
+                        const prevHour = currentHour === 0 ? 23 : currentHour - 1;
+                        const prevDate = new Date(now);
+                        if (currentHour === 0) prevDate.setDate(prevDate.getDate() - 1);
+                        const dateKey = getDateKey(prevDate);
+                        const logKey = `${dateKey}_${prevHour}`;
+                        if (!logs[logKey]) {
+                            lastPromptHourRef.current = currentHour;
+                            setSelectedLogHour({ date: prevDate, hour: prevHour });
+                            setLogText('');
+                            setLogCategory('productive');
+                            setModals(m => ({ ...m, log: true }));
+                            startAlarm();
+                        }
+                    }
+                };
+                tick();
+                const interval = setInterval(tick, 1000);
+                return () => clearInterval(interval);
+            }, [timerOn, logs, startAlarm, stopAlarm]);
+
+            // --- Derived Data ---
+            const todayStats = getDayStats(new Date(), logs);
+            const streak = calculateStreak(logs);
+            const loggedHours = 24 - todayStats.unlogged;
+            const productiveHours = todayStats.productive + todayStats.gym;
+            
+            // --- Actions ---
+            const openLogModal = useCallback((date, hour) => {
+                const key = `${getDateKey(date)}_${hour}`;
+                const existing = logs[key];
+                setSelectedLogHour({ date, hour });
+                setLogText(existing ? existing.text : '');
+                setLogCategory(existing ? existing.category : 'productive');
+                setModals(m => ({ ...m, log: true }));
+            }, [logs]);
+
+            const handleLogSave = () => {
+                if (!selectedLogHour) return;
+                const key = `${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`;
+                setLogs(prev => ({
+                    ...prev,
+                    [key]: { text: logText, category: logCategory, timestamp: new Date().toISOString() }
+                }));
+                stopAlarm();
+                setModals({ ...modals, log: false });
+                showToast('Activity logged successfully');
+            };
+
+            const toggleSleepHour = (h) => {
+                setSleepSelection(prev => prev.includes(h) ? prev.filter(item => item !== h) : [...prev, h]);
+            };
+
+            const saveSleep = () => {
+                const dateKey = getDateKey(viewDate);
+                const newLogs = { ...logs };
+                sleepSelection.forEach(h => {
+                    const key = `${dateKey}_${h}`;
+                    newLogs[key] = { text: 'Sleep', category: 'sleep', timestamp: new Date().toISOString() };
+                });
+                setLogs(newLogs);
+                setModals({ ...modals, sleep: false });
+                setSleepSelection([]);
+                showToast(`Logged ${sleepSelection.length} hours of sleep`);
+            };
+
+            const saveGoals = () => {
+                setGoals(tempGoals);
+                setModals({ ...modals, goals: false });
+                showToast('Goals updated successfully');
+            };
+
+            const copyYesterday = () => {
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yKey = getDateKey(yesterday);
+                const tKey = getDateKey(today);
+                const newLogs = { ...logs };
+                let copiedCount = 0;
+                for(let h=0; h<24; h++) {
+                    const srcKey = `${yKey}_${h}`;
+                    const destKey = `${tKey}_${h}`;
+                    if(newLogs[srcKey] && !newLogs[destKey]) {
+                        newLogs[destKey] = { ...newLogs[srcKey], timestamp: new Date().toISOString() };
+                        copiedCount++;
+                    }
+                }
+                if(copiedCount > 0) {
+                    setLogs(newLogs);
+                    showToast(`Copied ${copiedCount} logs from yesterday.`, 'success');
+                } else {
+                    showToast("Nothing new to copy or today is full.", 'error');
+                }
+            };
+
+            const deleteLog = () => {
+                if (!selectedLogHour) return;
+                const key = `${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`;
+                const newLogs = { ...logs };
+                delete newLogs[key];
+                setLogs(newLogs);
+                stopAlarm();
+                setModals({ ...modals, log: false });
+                showToast('Activity deleted');
+            };
+
+            // --- Layout Functions ---
+            const renderHeader = () => (
+                <header className="bg-[var(--bg-primary)] border-b border-[var(--border)] px-8 py-4 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3 w-[200px]">
+                        <div className="bg-[var(--accent)] p-2 rounded-lg"><Clock size={20} className="text-white"/></div>
+                        <h1 className="section-heading tracking-tight text-xl">KARM</h1>
+                    </div>
+                    
+                    <DigitalClock />
+
+                    <div className="flex items-center gap-3 w-[200px] justify-end">
+                        <button 
+                            onClick={() => setViewDate(new Date())}
+                            className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[#2f2f2f] text-[var(--text-secondary)] hover:text-white rounded-lg transition-colors font-medium text-sm"
+                        >
+                            Today
+                        </button>
+                        <button onClick={() => setAnalyticsOpen(!analyticsOpen)} className="btn-primary text-sm px-4 py-2">
+                            {analyticsOpen ? 'Hide' : 'Show'} Analytics
+                        </button>
+                    </div>
+                </header>
+            );
+
+            const renderLeftSidebar = () => {
+                const prodProgress = Math.min((productiveHours / goals.productive) * 100, 100);
+                const sleepProgress = Math.min((todayStats.sleep / goals.sleep) * 100, 100);
+
+                return (
+                    <div className="w-[300px] h-full overflow-y-auto p-4 flex flex-col gap-4 border-r border-[var(--border)] bg-[var(--bg-primary)]">
+                        <MiniCalendar 
+                            logs={logs} 
+                            currentMonth={viewDate} 
+                            onSelectDate={setViewDate}
+                            onPrevMonth={() => {
+                                const newDate = new Date(viewDate);
+                                newDate.setMonth(newDate.getMonth() - 1);
+                                setViewDate(newDate);
+                            }}
+                            onNextMonth={() => {
+                                const newDate = new Date(viewDate);
+                                newDate.setMonth(newDate.getMonth() + 1);
+                                setViewDate(newDate);
+                            }}
+                        />
+
+                        {/* Focus Timer Widget */}
+                        <div className="widget-card">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="subsection flex items-center gap-2">
+                                    <div className={timerOn ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}><Clock size={18}/></div>
+                                    Focus Timer
+                                </h4>
+                                <button 
+                                    onClick={() => setSoundEnabled(!soundEnabled)} 
+                                    className={`p-2 rounded-lg transition-colors ${soundEnabled ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}
+                                >
+                                    {soundEnabled ? <Volume2 size={14}/> : <VolumeX size={14}/>}
+                                </button>
+                            </div>
+                            <div className="text-center min-h-[40px] flex items-center justify-center mb-3">
+                                {timerOn ? (
+                                    <div className="body-text font-mono font-bold text-[var(--accent)] tracking-wider">{countdown}</div>
+                                ) : (
+                                    <div className="small-label">Timer is OFF</div>
+                                )}
+                            </div>
+                            <button onClick={() => setTimerOn(!timerOn)} className="btn-primary w-full">
+                                {timerOn ? 'STOP' : 'START'} TIMER
+                            </button>
+                        </div>
+
+                        {/* Goals Widget */}
+                        <div className="widget-card">
+                            <h4 className="subsection mb-4 flex items-center gap-2"><Target className="text-[var(--accent)]" /> Daily Goals</h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="flex justify-between body-text mb-2">
+                                        <span>Productive Time</span>
+                                        <span className="font-mono font-bold">{productiveHours}h / {goals.productive}h</span>
+                                    </div>
+                                    <div className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden">
+                                        <div className="bg-[var(--productive)] h-2 rounded-full transition-all duration-500" style={{ width: `${prodProgress}%` }}></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between body-text mb-2">
+                                        <span>Sleep</span>
+                                        <span className="font-mono font-bold">{todayStats.sleep}h / {goals.sleep}h</span>
+                                    </div>
+                                    <div className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden">
+                                        <div className="bg-[var(--sleep)] h-2 rounded-full transition-all duration-500" style={{ width: `${sleepProgress}%` }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => { setTempGoals(goals); setModals({...modals, goals: true}); }}
+                                className="btn-primary w-full mt-4"
+                            >
+                                Edit Goals
+                            </button>
+                        </div>
+
+                        {/* Quick Actions Widget */}
+                        <div className="widget-card">
+                            <h4 className="subsection mb-4">Quick Actions</h4>
+                            <div className="grid grid-cols-1 gap-2">
+                                <button 
+                                    onClick={() => {
+                                        const now = new Date();
+                                        openLogModal(now, now.getHours() === 0 ? 23 : now.getHours() - 1);
+                                    }}
+                                    className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-tertiary)] rounded-lg hover:bg-[#2f2f2f] body-text transition-colors"
+                                >
+                                    <Clock size={16} className="text-[var(--accent)]"/> Log Previous Hour
+                                </button>
+                                <button 
+                                    onClick={copyYesterday}
+                                    className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-tertiary)] rounded-lg hover:bg-[#2f2f2f] body-text transition-colors"
+                                >
+                                    <Copy size={16} className="text-[var(--productive)]"/> Copy Yesterday
+                                </button>
+                                <button 
+                                    onClick={() => setModals({ ...modals, sleep: true })}
+                                    className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-tertiary)] rounded-lg hover:bg-[#2f2f2f] body-text transition-colors"
+                                >
+                                    <Moon size={16} className="text-[var(--sleep)]"/> Log Sleep
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderMainContent = () => {
+                const isToday = getDateKey(viewDate) === getDateKey(new Date());
+                const currentHour = new Date().getHours();
+
+                return (
+                    <div className="flex-1 h-full flex flex-col overflow-hidden bg-[var(--bg-primary)]">
+                        {/* Large Date Header */}
+                        <div className="text-center pt-8 pb-6">
+                            <h2 className="section-heading text-5xl font-bold tracking-tight">
+                                {viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                            </h2>
+                            <div className="small-label mt-2 text-[var(--text-secondary)]">
+                                {viewDate.toLocaleDateString('en-US', { year: 'numeric' })}
+                            </div>
+                        </div>
+
+                        {/* 12-Hour Grid */}
+                        <div className="flex-1 overflow-y-auto px-6 pb-24">
+                            <div className="grid grid-cols-6 gap-3 auto-rows-[100px]">
+                                {Array.from({length: 24}).map((_, h) => {
+                                    const key = `${getDateKey(viewDate)}_${h}`;
+                                    const log = logs[key];
+                                    const cat = log ? CATEGORIES[log.category] : CATEGORIES.unlogged;
+                                    const IconComponent = cat.icon;
+                                    
+                                    const startH = h;
+                                    const endH = (h + 1) % 24;
+                                    const getAmPm = (hr) => hr >= 12 ? 'PM' : 'AM';
+                                    const get12 = (hr) => hr % 12 || 12;
+                                    const timeLabel = getAmPm(startH) === getAmPm(endH) 
+                                        ? `${get12(startH)}-${get12(endH)} ${getAmPm(startH)}` 
+                                        : `${get12(startH)} ${getAmPm(startH)}-${get12(endH)} ${getAmPm(endH)}`;
+
+                                    const isCurrentHour = isToday && h === currentHour;
+
+                                    return (
+                                        <div 
+                                            key={h} 
+                                            id={`hour-${h}`}
+                                            onClick={() => openLogModal(viewDate, h)}
+                                            className={`widget-card h-full p-3 group relative overflow-hidden cursor-pointer timeline-block ${!log ? 'border-dashed bg-transparent flex flex-col justify-between' : ''} ${isCurrentHour ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg-primary)] shadow-[0_0_15px_rgba(0,113,227,0.4)]' : ''}`}
+                                            style={{ backgroundColor: log ? cat.color : 'transparent' }}
+                                        >
+                                            {/* Current Time Blinking Indicator */}
+                                            {isCurrentHour && (
+                                                <div className="absolute top-3 right-3 flex h-3 w-3 z-10">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-white shadow-[0_0_5px_white]"></span>
+                                                </div>
+                                            )}
+
+                                            <div className={`flex flex-col justify-between h-full transition-opacity duration-200 ${log ? 'group-hover:opacity-0' : ''}`}>
+                                                <div className={`font-mono text-xl font-bold leading-tight opacity-90 ${log ? 'text-white' : 'text-[var(--text-secondary)]'}`}>
+                                                    {timeLabel}
+                                                </div>
+                                                <div className={`body-text font-bold leading-tight flex items-center gap-2 ${log ? 'text-white' : 'text-[var(--text-secondary)]'}`}>
+                                                    {log && IconComponent && <IconComponent size={18} />}
+                                                    {log ? cat.label : '+ Log Activity'}
+                                                </div>
+                                            </div>
+
+                                            {log && (
+                                                <div className="absolute inset-0 p-3 flex items-center justify-center text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-sm z-0">
+                                                    <div className="text-sm font-medium leading-snug text-white overflow-y-auto max-h-full w-full break-words">
+                                                        {log.text || "No description"}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderBottomPanel = () => {
+                const weekData = useMemo(() => {
+                    const counts = {};
+                    for(let i=0; i<7; i++) {
+                        const d = new Date(); d.setDate(d.getDate() - i);
+                        const s = getDayStats(d, logs);
+                        Object.keys(s).forEach(k => counts[k] = (counts[k]||0) + s[k]);
+                    }
+                    return counts;
+                }, [logs]);
+
+                const viewDateStats = useMemo(() => {
+                    const s = getDayStats(viewDate, logs);
+                    const counts = {};
+                    Object.keys(s).forEach(k => counts[k] = s[k]);
+                    return counts;
+                }, [viewDate, logs]);
+
+                // Calculate Dynamic Stats
+                const allTimeBest = useMemo(() => {
+                    let maxScore = 0;
+                    const uniqueDates = new Set();
+                    Object.keys(logs).forEach(key => uniqueDates.add(key.split('_')[0]));
+                    if (uniqueDates.size === 0) return 0;
+                    
+                    uniqueDates.forEach(dateStr => {
+                        const parts = dateStr.split('-');
+                        if(parts.length === 3) {
+                            const d = new Date(parts[0], parts[1]-1, parts[2]);
+                            const score = getProductivityScore(getDayStats(d, logs));
+                            if(score > maxScore) maxScore = score;
+                        }
+                    });
+                    return maxScore;
+                }, [logs]);
+
+                const vsLastWeek = useMemo(() => {
+                    let last7Score = 0;
+                    let prev7Score = 0;
+                    for(let i=0; i<7; i++) {
+                        const d1 = new Date(); d1.setDate(d1.getDate() - i);
+                        last7Score += getProductivityScore(getDayStats(d1, logs));
+                        
+                        const d2 = new Date(); d2.setDate(d2.getDate() - (i + 7));
+                        prev7Score += getProductivityScore(getDayStats(d2, logs));
+                    }
+                    last7Score = last7Score / 7;
+                    prev7Score = prev7Score / 7;
+                    
+                    if (prev7Score === 0 && last7Score > 0) return { val: 100, trend: 'up' };
+                    if (prev7Score === 0) return { val: 0, trend: 'flat' };
+                    
+                    const diff = ((last7Score - prev7Score) / prev7Score) * 100;
+                    return { val: Math.abs(Math.round(diff)), trend: diff >= 0 ? 'up' : diff < 0 ? 'down' : 'flat' };
+                }, [logs]);
+
+                // 1. Donut Capacity (24h or 168h)
+                const totalCapacity = activeTab === 'categories' ? 168 : 24;
+                
+                // 2. Breakdown List Data Preparation
+                const currentData = activeTab === 'categories' ? weekData : viewDateStats;
+                const totalLoggedHours = Object.keys(currentData).filter(k => k !== 'unlogged').reduce((acc, k) => acc + (currentData[k] || 0), 0);
+                const sleepHours = currentData['sleep'] || 0;
+                // Active Time Calculation for LIST percentages
+                const activeHours = totalLoggedHours - sleepHours;
+
+                return (
+                    <div className={`fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] transition-all duration-300 z-50 flex flex-col ${analyticsOpen ? 'h-[400px]' : 'h-12'}`}>
+                        {/* Tab Navigation */}
+                        <div className="flex items-center justify-between px-8 py-3 border-b border-[var(--border)] shrink-0">
+                            <div className="flex gap-8">
+                                {['Trends', 'Categories', 'Daily View'].map(tab => (
+                                    <button 
+                                        key={tab}
+                                        onClick={() => { setActiveTab(tab.toLowerCase()); setAnalyticsOpen(true); }}
+                                        className={`subsection pb-1 transition-colors ${activeTab === tab.toLowerCase() && analyticsOpen ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setAnalyticsOpen(!analyticsOpen)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[var(--text-secondary)]">
+                                {analyticsOpen ? <ChevronDown size={20}/> : <ChevronUp size={20}/>}
+                            </button>
+                        </div>
+
+                        {/* Chart Content */}
+                        {analyticsOpen && (
+                            <div className="flex-1 p-6 overflow-hidden bg-[var(--bg-primary)]">
+                                {activeTab === 'trends' && (
+                                    <div className="h-full flex gap-6">
+                                        <div className="flex-1 relative">
+                                            <h5 className="absolute top-4 left-4 small-label uppercase tracking-wider">30 Day Productivity Trend</h5>
+                                            <div className="h-full pt-8">
+                                                <TrendChart logs={logs} />
+                                            </div>
+                                        </div>
+                                        <div className="w-64 grid grid-rows-2 gap-4">
+                                            <div className="bg-[var(--bg-secondary)] p-4 rounded-lg border border-[var(--border)]">
+                                                <div className="hero-number text-[var(--productive)]">{allTimeBest}%</div>
+                                                <div className="small-label">All-time Best</div>
+                                            </div>
+                                            <div className="bg-[var(--bg-secondary)] p-4 rounded-lg border border-[var(--border)]">
+                                                <div className={`hero-number ${vsLastWeek.trend === 'up' ? 'text-[var(--accent)]' : vsLastWeek.trend === 'down' ? 'text-[var(--wasted)]' : 'text-[var(--text-secondary)]'}`}>
+                                                    {vsLastWeek.trend === 'up' ? '↑ ' : vsLastWeek.trend === 'down' ? '↓ ' : ''}{vsLastWeek.val}%
+                                                </div>
+                                                <div className="small-label">vs Last Week</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(activeTab === 'categories' || activeTab === 'daily view') && (
+                                    <div className="h-full flex gap-6">
+                                        <div className="w-1/3 relative">
+                                            <DonutChart 
+                                                data={activeTab === 'categories' ? weekData : viewDateStats} 
+                                                totalCapacity={totalCapacity}
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-200">
+                                                <div className="text-center">
+                                                    <div className="hero-number text-[var(--text-primary)]">
+                                                        {activeTab === 'categories' ? '7d' : viewDate.getDate()}
+                                                    </div>
+                                                    <div className="small-label">
+                                                        {activeTab === 'categories' ? 'Summary' : viewDate.toLocaleDateString('en-US', {weekday: 'short'})}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto pr-2">
+                                            <h5 className="subsection mb-4">
+                                                {activeTab === 'categories' ? 'Weekly Breakdown' : `Breakdown for ${viewDate.toDateString()}`}
+                                            </h5>
+                                            <div className="space-y-4">
+                                                {Object.entries(currentData)
+                                                    .sort((a,b) => b[1] - a[1])
+                                                    .filter(([k]) => k !== 'unlogged')
+                                                    .map(([k, val]) => {
+                                                        let percentage = 0;
+                                                        if (k !== 'sleep') {
+                                                            percentage = activeHours > 0 ? Math.round((val / activeHours) * 100) : 0;
+                                                        }
+                                                        if (activeTab === 'daily view' && val === 0) return null;
+
+                                                        const ListIcon = CATEGORIES[k].icon;
+
+                                                        return (
+                                                            <div key={k} className="flex items-center gap-4">
+                                                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0" style={{backgroundColor: CATEGORIES[k].color}}>
+                                                                    {ListIcon && <ListIcon size={16} />}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className="flex justify-between body-text mb-1">
+                                                                        <span className="font-medium">{CATEGORIES[k].label}</span>
+                                                                        <span className="font-mono text-[var(--text-secondary)]">
+                                                                            {val}h {k !== 'sleep' && <span className="text-sm text-[var(--text-secondary)] ml-1">({percentage}%)</span>}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                                                                        <div className="h-2 rounded-full" style={{width: `${k === 'sleep' ? 100 : percentage}%`, backgroundColor: CATEGORIES[k].color}}></div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                {activeTab === 'daily view' && Object.values(currentData).every(v => v === 0) && (
+                                                    <div className="text-[var(--text-secondary)] body-text italic">No data logged for this date.</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const renderModals = () => (
+                <>
+                    {/* Log Modal */}
+                    {modals.log && (
+                        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center modal-fade-in">
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-lg p-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="section-heading">
+                                        Log Activity: {selectedLogHour && (() => {
+                                            const h = selectedLogHour.hour;
+                                            const getAmPm = (hr) => hr >= 12 ? 'PM' : 'AM';
+                                            const get12 = (hr) => hr % 12 || 12;
+                                            return getAmPm(h) === getAmPm((h + 1) % 24) ? `${get12(h)}-${get12((h + 1) % 24)} ${getAmPm(h)}` : `${get12(h)} ${getAmPm(h)}-${get12((h + 1) % 24)} ${getAmPm((h + 1) % 24)}`;
+                                        })()}
+                                    </h3>
+                                    {selectedLogHour && logs[`${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`] && (
+                                        <button onClick={deleteLog} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[#ef4444]" title="Delete Log">
+                                            <Trash size={18} />
+                                        </button>
+                                    )}
+                                </div>
+                                <textarea 
+                                    className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4 mb-6 outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                                    rows="3"
+                                    placeholder="What were you doing?"
+                                    value={logText}
+                                    onChange={e => setLogText(e.target.value)}
+                                />
+                                <div className="grid grid-cols-4 gap-2 mb-6">
+                                    {Object.entries(CATEGORIES).filter(([k]) => k!=='unlogged').map(([key, cat]) => {
+                                        const BtnIcon = cat.icon;
+                                        return (
+                                            <button 
+                                                key={key}
+                                                onClick={() => setLogCategory(key)}
+                                                className={`py-3 px-2 rounded-lg body-text font-medium transition-all flex flex-col items-center justify-center gap-2 ${logCategory === key ? 'text-white shadow-lg scale-[1.02]' : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+                                                style={{ backgroundColor: logCategory === key ? cat.color : undefined }}
+                                            >
+                                                {BtnIcon && <BtnIcon size={20} />}
+                                                <span className="text-xs">{cat.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button 
+                                        onClick={handleLogSave} 
+                                        className="flex-1 py-3 px-4 rounded-lg font-medium text-white transition-all hover:brightness-110"
+                                        style={{ backgroundColor: CATEGORIES[logCategory].color }}
+                                    >
+                                        Save Log
+                                    </button>
+                                    <button onClick={() => { stopAlarm(); setModals({...modals, log: false}); }} className="px-6 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-medium rounded-xl hover:bg-[#2f2f2f]">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Sleep Modal */}
+                    {modals.sleep && (
+                        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center modal-fade-in">
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-lg p-6">
+                                <h3 className="section-heading mb-2">Log Sleep</h3>
+                                <p className="body-text text-[var(--text-secondary)] mb-6">Select hours to mark as sleep for {viewDate.toLocaleDateString()}:</p>
+                                <div className="grid grid-cols-6 gap-2 mb-6">
+                                    {Array.from({length: 24}).map((_, h) => {
+                                        const isSelected = sleepSelection.includes(h);
+                                        const timeLabel = h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h-12}p`;
+                                        return (
+                                            <button
+                                                key={h}
+                                                onClick={() => toggleSleepHour(h)}
+                                                className={`py-3 rounded-lg font-medium transition-all ${isSelected ? 'bg-[var(--sleep)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
+                                            >
+                                                {timeLabel}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={saveSleep} className="btn-primary flex-1">Save Sleep</button>
+                                    <button onClick={() => { setModals({...modals, sleep: false}); setSleepSelection([]); }} className="px-6 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-medium rounded-xl hover:bg-[#2f2f2f]">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Goals Modal */}
+                    {modals.goals && (
+                        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center modal-fade-in">
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-6">
+                                <h3 className="section-heading mb-6 flex items-center gap-2"><Target className="text-[var(--accent)]" /> Set Daily Goals</h3>
+                                <div className="space-y-4 mb-6">
+                                    <div>
+                                        <label className="small-label uppercase tracking-wider mb-2 block">Productive Hours</label>
+                                        <input 
+                                            type="number" min="1" max="24"
+                                            value={tempGoals.productive}
+                                            onChange={(e) => setTempGoals({...tempGoals, productive: parseInt(e.target.value) || 0})}
+                                            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-3 outline-none focus:ring-2 focus:ring-[var(--accent)] font-mono font-bold text-[var(--text-primary)]"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="small-label uppercase tracking-wider mb-2 block">Sleep Hours</label>
+                                        <input 
+                                            type="number" min="1" max="24"
+                                            value={tempGoals.sleep}
+                                            onChange={(e) => setTempGoals({...tempGoals, sleep: parseInt(e.target.value) || 0})}
+                                            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-3 outline-none focus:ring-2 focus:ring-[var(--accent)] font-mono font-bold text-[var(--text-primary)]"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={saveGoals} className="btn-primary flex-1">Update Goals</button>
+                                    <button onClick={() => setModals({...modals, goals: false})} className="px-6 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-medium rounded-xl hover:bg-[#2f2f2f]">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
+            );
+
+            // --- Main Layout Render ---
+            return (
+                <div className="h-screen w-screen flex flex-col overflow-hidden bg-[var(--bg-primary)] font-sans text-[var(--text-primary)]">
+                    {/* Toast Notification */}
+                    {toast.show && (
+                        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[150] bg-[var(--bg-tertiary)] border border-[var(--border)] text-white px-6 py-3 rounded-full shadow-lg toast-slide-up flex items-center gap-3">
+                            {toast.type === 'success' ? <Activity size={18} className="text-[var(--productive)]"/> : <XCircle size={18} className="text-[var(--wasted)]"/>}
+                            <span className="font-medium text-sm">{toast.message}</span>
+                        </div>
+                    )}
+
+                    {renderHeader()}
+                    <div className="flex flex-1 overflow-hidden">
+                        {renderLeftSidebar()}
+                        {renderMainContent()}
+                    </div>
+                    {renderBottomPanel()}
+                    {renderModals()}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
