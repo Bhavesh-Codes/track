@@ -357,7 +357,7 @@
         const getProductivityScore = (stats) => {
             const totalLogged = 24 - stats.unlogged - stats.sleep;
             if (totalLogged <= 0) return 0;
-            const scorePoints = stats.productive + stats.gym + (stats.semiProductive * 0.5) + (stats.errands * 0.5);
+            const scorePoints = stats.productive + stats.gym + (stats.semiProductive * 0.5) + (stats.neutral * 0.5);
             return Math.round((scorePoints / totalLogged) * 100);
         };
 
@@ -1317,7 +1317,7 @@
                                             'No active hours logged'
                                         ) : (
                                             <>
-                                                <span className="block">Productive + Gym + ½ Semi + ½ Errands</span>
+                                                <span className="block">Productive + Gym + ½ Semi + ½ Neutral</span>
                                                 <span className="block">Sleep excluded</span>
                                             </>
                                         )}

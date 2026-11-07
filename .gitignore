@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Tool-specific files
+/.impeccable/
+/.opencode/
+
+# Logs and generated output
+*.log
+/dist/
+/build/
+/node_modules/
