@@ -1,9 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KARM - Time Tracking</title>
+
+    <script>
+        // Apply the saved theme before first paint so dark/light never flashes.
+        try {
+            const savedTheme = localStorage.getItem('karm_theme');
+            if (savedTheme === 'light' || savedTheme === 'dark') {
+                document.documentElement.dataset.theme = savedTheme;
+            }
+        } catch (e) {}
+    </script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,12 +32,19 @@
         /* CSS Variables - Dark Minimalist Theme */
         :root {
             --bg-primary: #0a0a0a;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #2a2a2a;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --accent: #0071e3;
-            --border: #2a2a2a;
+            --bg-secondary: #181818;
+            --bg-tertiary: #262626;
+            --bg-hover: #303030;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a3a3a3;
+            --text-tertiary: #8a8a8a;
+            --accent: #0a6cd6;
+            --accent-hover: #0d7be8;
+            --border: #272727;
+            --border-strong: #3a3a3a;
+            --hover-ring: rgba(255, 255, 255, 0.28);
+            --overlay: rgba(0, 0, 0, 0.72);
+            --shadow-color: rgba(0, 0, 0, 0.5);
             
             /* Category Colors */
             --productive: #15803d;       /* Dark Green */
@@ -41,30 +58,59 @@
             --unlogged: #374151;         /* Unlogged */
         }
 
+        /* Light Theme */
+        :root[data-theme="light"] {
+            color-scheme: light;
+            --bg-primary: #f6f6f7;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #ececef;
+            --bg-hover: #e2e2e7;
+            --text-primary: #17171a;
+            --text-secondary: #55555f;
+            --text-tertiary: #6f6f7a;
+            --accent: #0a6cd6;
+            --accent-hover: #085cba;
+            --border: #e3e3e8;
+            --border-strong: #c8c8d1;
+            --hover-ring: rgba(0, 0, 0, 0.24);
+            --overlay: rgba(20, 20, 28, 0.38);
+            --shadow-color: rgba(20, 20, 30, 0.18);
+        }
+
+
         /* Base Styles */
+        html { color-scheme: dark; }
         body {
             background: var(--bg-primary);
             color: var(--text-primary);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.011em;
+            -webkit-font-smoothing: antialiased;
         }
+        ::selection { background: rgba(10, 108, 214, 0.45); color: var(--text-primary); }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+        button { cursor: pointer; }
+        button:disabled { cursor: not-allowed; }
+        input, textarea { caret-color: var(--accent); }
 
         /* Typography */
         .hero-number { 
-            font-size: 64px; 
+            font-size: 44px; 
             font-weight: 700; 
             line-height: 1; 
-            font-family: "SF Mono", "Monaco", monospace;
+            font-family: "SF Mono", "Monaco", "Consolas", monospace;
+            font-variant-numeric: tabular-nums;
         }
         .section-heading { 
-            font-size: 32px; 
+            font-size: 24px; 
             font-weight: 600; 
-            line-height: 1.2; 
+            line-height: 1.25; 
+            letter-spacing: -0.02em;
         }
         .subsection { 
-            font-size: 20px; 
+            font-size: 17px; 
             font-weight: 500; 
-            line-height: 1.3; 
+            line-height: 1.35; 
         }
         .body-text { 
             font-size: 16px; 
@@ -74,28 +120,43 @@
         .small-label { 
             font-size: 14px; 
             font-weight: 400; 
+            line-height: 1.4;
             color: var(--text-secondary);
         }
+        .micro-label {
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.45;
+            letter-spacing: 0.01em;
+            color: var(--text-tertiary);
+        }
+        .mono-nums { font-variant-numeric: tabular-nums; }
 
         /* Cards */
         .widget-card {
             background: var(--bg-secondary);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 16px;
+            padding: 20px;
         }
 
-        /* Timeline Block Hover */
+        /* Sidebar density: three cards must clear the 48px analytics bar at 900px tall. */
+        #app-sidebar { padding: 12px; gap: 12px; }
+        #app-sidebar .widget-card { padding: 16px; }
+
+        /* Timeline Block */
         .timeline-block {
-            transition: all 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transition: background-color 160ms ease-out, border-color 160ms ease-out, filter 160ms ease-out;
         }
         .timeline-block:hover {
-            transform: scale(1.03);
-            filter: brightness(1.1);
+            filter: brightness(1.06);
+            border-color: var(--border-strong);
         }
         .timeline-block:active {
-            transform: scale(0.98);
+            filter: brightness(0.98);
+        }
+        .timeline-block[data-logged="true"]:hover {
+            border-color: var(--hover-ring);
         }
 
         /* Buttons */
@@ -105,32 +166,48 @@
             border-radius: 10px;
             padding: 12px 24px;
             font-weight: 500;
-            transition: all 200ms;
+            transition: background-color 160ms ease-out;
         }
-        .btn-primary:hover {
-            filter: brightness(1.1);
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-primary:disabled { background: var(--bg-tertiary); color: var(--text-tertiary); }
+        .btn-quiet {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            transition: background-color 160ms ease-out, color 160ms ease-out;
         }
+        .btn-quiet:hover { background: var(--bg-hover); color: var(--text-primary); }
 
         /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-primary); }
-        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 8px; border: 2px solid var(--bg-primary); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
         /* Animations */
         .modal-fade-in {
-            animation: modalFadeIn 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            animation: modalFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+            from { opacity: 0; transform: translateY(8px) scale(0.985); }
+            to { opacity: 1; transform: none; }
         }
         
         .toast-slide-up {
-            animation: toastSlideUp 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            animation: toastSlideUp 260ms cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes toastSlideUp {
-            from { opacity: 0; transform: translate(-50%, -20px); }
+            from { opacity: 0; transform: translate(-50%, -12px); }
             to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
         }
     </style>
 </head>
@@ -168,7 +245,9 @@
         const Copy = (props) => <Icon {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></Icon>;
         const Volume2 = (props) => <Icon {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></Icon>;
         const VolumeX = (props) => <Icon {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></Icon>;
+        const Sun = (props) => <Icon {...props}><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></Icon>;
         const Zap = (props) => <Icon {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+        const BarChart = (props) => <Icon {...props}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></Icon>;
         
         // Category Icons
         const Briefcase = (props) => <Icon {...props}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></Icon>;
@@ -180,17 +259,57 @@
         const HelpCircle = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></Icon>;
 
         // --- Categories Config ---
-        const CATEGORIES = {
-            productive: { label: 'Productive', color: '#15803d', text: 'text-[#15803d]', icon: Briefcase },
-            semiProductive: { label: 'Semi Productive', color: '#bef264', text: 'text-[#bef264]', icon: Activity }, 
-            neutral: { label: 'Neutral', color: '#64748b', text: 'text-[#64748b]', icon: Coffee }, 
-            gym: { label: 'Gym', color: '#ec4899', text: 'text-[#ec4899]', icon: Zap }, 
-            errands: { label: 'Errands', color: '#eab308', text: 'text-[#eab308]', icon: ShoppingCart },
-            unproductive: { label: 'Unproductive', color: '#f97316', text: 'text-[#f97316]', icon: Smartphone },
-            wasted: { label: 'Wasted', color: '#ef4444', text: 'text-[#ef4444]', icon: XCircle },
-            sleep: { label: 'Sleep', color: '#6366f1', text: 'text-[#6366f1]', icon: Moon },
-            unlogged: { label: 'Unlogged', color: '#374151', text: 'text-[#374151]', icon: HelpCircle }
+        // Ink is chosen per fill so text always clears 4.5:1 against its own color.
+        const readableInk = (hex) => {
+            const raw = hex.replace('#', '');
+            const n = parseInt(raw.length === 3 ? raw.split('').map(c => c + c).join('') : raw, 16);
+            const channel = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+            const L = 0.2126 * channel(n >> 16) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+            return L > 0.18 ? '#0a0a0a' : '#ffffff';
         };
+
+        const CATEGORIES = {
+            productive: { label: 'Productive', color: '#15803d', icon: Briefcase },
+            semiProductive: { label: 'Semi Productive', color: '#bef264', icon: Activity }, 
+            neutral: { label: 'Neutral', color: '#64748b', icon: Coffee }, 
+            gym: { label: 'Gym', color: '#ec4899', icon: Zap }, 
+            errands: { label: 'Errands', color: '#eab308', icon: ShoppingCart },
+            unproductive: { label: 'Unproductive', color: '#f97316', icon: Smartphone },
+            wasted: { label: 'Wasted', color: '#ef4444', icon: XCircle },
+            sleep: { label: 'Sleep', color: '#6366f1', icon: Moon },
+            unlogged: { label: 'Unlogged', color: '#374151', icon: HelpCircle }
+        };
+        Object.values(CATEGORIES).forEach(cat => { cat.ink = readableInk(cat.color); });
+
+        const SCORE_BANDS = [
+            { min: 0, label: '0–20', color: '#ef4444' },
+            { min: 21, label: '21–40', color: '#f97316' },
+            { min: 41, label: '41–60', color: '#64748b' },
+            { min: 61, label: '61–80', color: '#bef264' },
+            { min: 81, label: '81–100', color: '#15803d' }
+        ];
+
+        const scoreBand = (score) => {
+            for (let i = SCORE_BANDS.length - 1; i >= 0; i--) {
+                if (score > SCORE_BANDS[i].min) return SCORE_BANDS[i];
+            }
+            return SCORE_BANDS[0];
+        };
+
+        // Chart.js cannot read CSS variables, so its palette is mirrored per theme.
+        const CHART_THEMES = {
+            dark: {
+                tooltipBg: 'rgba(24, 24, 24, 0.97)', tooltipTitle: '#f5f5f5', tooltipBody: '#d4d4d4',
+                tooltipBorder: '#272727', tick: '#a3a3a3', grid: '#242424', axis: '#272727',
+                pointBorder: '#0a0a0a', line: '#0a6cd6'
+            },
+            light: {
+                tooltipBg: 'rgba(255, 255, 255, 0.98)', tooltipTitle: '#17171a', tooltipBody: '#45454f',
+                tooltipBorder: '#e3e3e8', tick: '#55555f', grid: '#e8e8ec', axis: '#d4d4da',
+                pointBorder: '#ffffff', line: '#0a6cd6'
+            }
+        };
+        const chartTheme = (theme) => CHART_THEMES[theme] || CHART_THEMES.dark;
 
         // --- Helpers ---
         const getDateKey = (date) => {
@@ -238,66 +357,86 @@
             const [time, setTime] = useState(new Date());
 
             useEffect(() => {
-                const timer = setInterval(() => setTime(new Date()), 1000);
+                const timer = setInterval(() => setTime(new Date()), 10000);
                 return () => clearInterval(timer);
             }, []);
 
             return (
-                <div className="font-mono text-3xl font-bold tracking-wider text-[var(--text-primary)]">
-                    {time.toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }).toUpperCase()}
+                <div
+                    aria-hidden="true"
+                    className="hidden lg:block font-mono mono-nums text-[30px] lg:text-[34px] font-semibold tracking-tight leading-none text-[var(--text-primary)]"
+                >
+                    {time.toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit' }).toUpperCase()}
                 </div>
             );
         };
 
-        const MiniCalendar = ({ logs, currentMonth, onSelectDate, onPrevMonth, onNextMonth }) => {
-            const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+        const MiniCalendar = ({ logs, selectedDate, month, onSelectDate, onPrevMonth, onNextMonth }) => {
+            const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
             const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
             const emptyDays = Array.from({ length: firstDay }, (_, i) => i);
 
             return (
                 <div className="widget-card">
                     <div className="flex justify-between items-center mb-4">
-                        <button onClick={onPrevMonth} className="p-1 hover:bg-[var(--bg-tertiary)] rounded text-[var(--text-secondary)] hover:text-white">
+                        <button type="button" onClick={onPrevMonth} aria-label="Previous month" className="btn-quiet p-2 rounded-lg text-[var(--text-secondary)]">
                             <ChevronLeft size={16} />
                         </button>
-                        <h3 className="section-heading text-lg leading-none">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                        <button onClick={onNextMonth} className="p-1 hover:bg-[var(--bg-tertiary)] rounded text-[var(--text-secondary)] hover:text-white">
+                        <h3 className="text-base font-semibold leading-none">{month.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                        <button type="button" onClick={onNextMonth} aria-label="Next month" className="btn-quiet p-2 rounded-lg text-[var(--text-secondary)]">
                             <ChevronRight size={16} />
                         </button>
                     </div>
                     
-                    <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <span key={d} className="text-[var(--text-secondary)] font-bold py-1">{d}</span>)}
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <span key={d} className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] py-1">{d}</span>)}
                         {emptyDays.map(d => <div key={`empty-${d}`} />)}
                         {days.map(day => {
-                            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                            const date = new Date(month.getFullYear(), month.getMonth(), day);
                             const stats = getDayStats(date, logs);
-                            const score = getProductivityScore(stats);
+                            const active = 24 - stats.unlogged - stats.sleep;
                             const hasLogs = stats.unlogged < 24;
-                            const intensity = score > 80 ? 'bg-[#15803d]' : score > 60 ? 'bg-[#bef264]' : score > 40 ? 'bg-[#06b6d4]' : score > 20 ? 'bg-[#f59e0b]' : 'bg-[#374151]';
-                            const isSelected = getDateKey(date) === getDateKey(currentMonth);
+                            const score = active > 0 ? getProductivityScore(stats) : null;
+                            const band = score !== null ? scoreBand(score) : null;
+                            const isSelected = getDateKey(date) === getDateKey(selectedDate);
 
                             return (
-                                <div 
-                                    key={day} 
+                                <button
+                                    type="button"
+                                    key={day}
                                     onClick={() => onSelectDate(date)}
-                                    className={`aspect-square rounded-md flex items-center justify-center cursor-pointer transition-colors 
-                                        ${hasLogs ? intensity : 'bg-[var(--bg-tertiary)]'} 
-                                        ${hasLogs ? 'text-white' : 'text-[var(--text-secondary)] hover:bg-[#333]'}
-                                        ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
+                                    aria-label={`${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}${score !== null ? `, score ${score} percent` : hasLogs ? ', no active hours logged' : ', no hours logged'}`}
+                                    aria-current={isSelected ? 'date' : undefined}
+                                    title={score !== null ? `${score}% score · ${24 - stats.unlogged}h logged` : hasLogs ? `${24 - stats.unlogged}h logged · no active hours` : 'No hours logged'}
+                                    className={`aspect-square rounded-md flex items-center justify-center text-[13px] font-medium transition-colors
+                                        ${hasLogs ? '' : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}
+                                        ${isSelected ? 'ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
+                                        ${!hasLogs ? '' : score === null ? 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]' : 'hover:brightness-110'}
                                     `}
+                                    style={band ? { backgroundColor: band.color, color: readableInk(band.color) } : undefined}
                                 >
                                     {day}
-                                </div>
+                                </button>
                             );
                         })}
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
+                        <span className="micro-label">Score</span>
+                        <div className="flex items-center gap-1.5" aria-hidden="true">
+                            <span className="micro-label">0</span>
+                            {SCORE_BANDS.map(band => (
+                                <span key={band.label} title={band.label} className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: band.color }} />
+                            ))}
+                            <span className="micro-label">100</span>
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        const DonutChart = memo(({ data, totalCapacity }) => {
+        const DonutChart = memo(({ data, totalCapacity, theme }) => {
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -305,14 +444,15 @@
                 if (chartInstance.current) chartInstance.current.destroy();
                 if (!chartRef.current) return;
                 const ctx = chartRef.current.getContext('2d');
+                const c = chartTheme(theme);
                 
                 chartInstance.current = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: Object.values(CATEGORIES).filter(c => c.label !== 'Unlogged').map(c => c.label),
+                        labels: Object.values(CATEGORIES).map(c => c.label),
                         datasets: [{
-                            data: Object.keys(CATEGORIES).filter(k => k !== 'unlogged').map(k => data[k] || 0),
-                            backgroundColor: Object.values(CATEGORIES).filter(c => c.label !== 'Unlogged').map(c => c.color),
+                            data: Object.keys(CATEGORIES).map(k => data[k] || 0),
+                            backgroundColor: Object.values(CATEGORIES).map(c => c.color),
                             borderWidth: 0,
                             hoverOffset: 4
                         }]
@@ -324,114 +464,267 @@
                             legend: { display: false },
                             tooltip: {
                                 enabled: true,
-                                backgroundColor: 'rgba(26, 26, 26, 0.95)',
-                                titleColor: '#ffffff',
-                                bodyColor: '#e5e5e5',
-                                borderColor: '#2a2a2a',
+                                backgroundColor: c.tooltipBg,
+                                titleColor: c.tooltipTitle,
+                                bodyColor: c.tooltipBody,
+                                borderColor: c.tooltipBorder,
                                 borderWidth: 1,
                                 padding: 12,
                                 cornerRadius: 8,
                                 displayColors: true,
                                 titleFont: { size: 14, weight: 'bold', family: '-apple-system, BlinkMacSystemFont, "Segoe UI"' },
-                                bodyFont: { size: 13, family: 'SF Mono, Monaco, monospace' },
+                                bodyFont: { size: 13, family: 'SF Mono, Monaco, Consolas, monospace' },
                                 callbacks: {
                                     label: function(context) {
                                         const value = context.raw || 0;
                                         const percentage = totalCapacity > 0 ? Math.round((value / totalCapacity) * 100) : 0;
-                                        return `${value}h (${percentage}%)`;
+                                        return `${value}h · ${percentage}%`;
                                     }
                                 }
                             }
                         },
                         cutout: '70%',
-                        animation: { duration: 400 }
+                        animation: { duration: 260 }
                     }
                 });
                 return () => {
                     if (chartInstance.current) chartInstance.current.destroy();
                 };
-            }, [data, totalCapacity]);
+            }, [data, totalCapacity, theme]);
 
             return <canvas ref={chartRef} className="w-full h-full" />;
         });
 
-        const TrendChart = memo(({ logs }) => {
+        const TrendChart = memo(({ logs, theme }) => {
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
-            useEffect(() => {
-                if (!chartRef.current) return;
-                const last30Days = Array.from({ length: 30 }, (_, i) => {
+            const days = useMemo(() => {
+                return Array.from({ length: 30 }, (_, i) => {
                     const d = new Date();
                     d.setDate(d.getDate() - (29 - i));
-                    return d;
+                    const stats = getDayStats(d, logs);
+                    const active = 24 - stats.unlogged - stats.sleep;
+                    return {
+                        date: d,
+                        label: d.getDate(),
+                        score: active > 0 ? getProductivityScore(stats) : null,
+                        logged: 24 - stats.unlogged
+                    };
                 });
+            }, [logs]);
 
-                const scores = last30Days.map(d => getProductivityScore(getDayStats(d, logs)));
-                const labels = last30Days.map(d => d.getDate());
+            const hasData = days.some(d => d.score !== null);
 
+            useEffect(() => {
+                if (!chartRef.current) return;
                 if (chartInstance.current) chartInstance.current.destroy();
                 const ctx = chartRef.current.getContext('2d');
+                const c = chartTheme(theme);
                 
                 chartInstance.current = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels,
+                        labels: days.map(d => d.label),
                         datasets: [{
-                            label: 'Productivity',
-                            data: scores,
-                            borderColor: '#0071e3',
+                            label: 'Score',
+                            data: days.map(d => d.score),
+                            borderColor: c.line,
                             backgroundColor: 'transparent',
                             fill: false,
-                            tension: 0.4,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#0071e3'
+                            tension: 0.35,
+                            borderWidth: 2,
+                            spanGaps: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: c.line,
+                            pointBorderColor: c.pointBorder,
+                            pointBorderWidth: 2
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
                         scales: {
                             y: { 
                                 min: 0, max: 100, 
-                                ticks: { color: '#a0a0a0' },
-                                grid: { color: '#2a2a2a' }
+                                ticks: { color: c.tick, font: { size: 11 }, callback: (v) => `${v}%` },
+                                grid: { color: c.grid },
+                                border: { display: false }
                             },
                             x: { 
-                                ticks: { color: '#a0a0a0' },
-                                grid: { color: '#2a2a2a' }
+                                ticks: { color: c.tick, font: { size: 11 }, maxTicksLimit: 10, autoSkip: true },
+                                grid: { display: false },
+                                border: { color: c.axis }
                             }
                         },
-                        plugins: { legend: { display: false } }
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: c.tooltipBg,
+                                titleColor: c.tooltipTitle,
+                                bodyColor: c.tooltipBody,
+                                borderColor: c.tooltipBorder,
+                                borderWidth: 1,
+                                padding: 12,
+                                cornerRadius: 8,
+                                titleFont: { size: 13, weight: 'bold', family: '-apple-system, BlinkMacSystemFont, "Segoe UI"' },
+                                bodyFont: { size: 12, family: 'SF Mono, Monaco, Consolas, monospace' },
+                                callbacks: {
+                                    title: (items) => days[items[0].dataIndex].date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+                                    label: (item) => {
+                                        const day = days[item.dataIndex];
+                                        return day.score === null ? 'No hours logged' : `${day.score}% score · ${day.logged}/24h logged`;
+                                    }
+                                }
+                            }
+                        },
+                        animation: { duration: 300 }
                     }
                 });
                 return () => {
                     if (chartInstance.current) chartInstance.current.destroy();
                 };
-            }, [logs]);
+            }, [days, theme]);
+
+            if (!hasData) {
+                return (
+                    <div className="h-full w-full flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="body-text text-[var(--text-secondary)]">No trend yet</div>
+                            <div className="micro-label mt-1">Log an hour to start the chart.</div>
+                        </div>
+                    </div>
+                );
+            }
 
             return <canvas ref={chartRef} className="w-full h-full" />;
         });
 
-        function App() {
-            const [logs, setLogs] = useState(() => {
-                const raw = localStorage.getItem('karm_data');
-                if (!raw) return {};
-                try {
-                    const data = JSON.parse(raw);
-                    let migrated = false;
-                    Object.keys(data).forEach(k => {
-                        if (data[k].category === 'fitness') { data[k].category = 'neutral'; migrated = true; }
-                        else if (data[k].category === 'neutral') { data[k].category = 'semiProductive'; migrated = true; }
-                    });
-                    if (migrated) {
-                        localStorage.setItem('karm_data', JSON.stringify(data));
+        // --- Storage ---
+        const LOG_SCHEMA_VERSION = 2;
+        let storageWarning = null;
+
+        const loadLogs = () => {
+            const raw = localStorage.getItem('karm_data');
+            if (!raw) return {};
+            let parsed;
+            try {
+                parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Not an object');
+            } catch (e) {
+                const backupKey = `karm_data_backup_${Date.now()}`;
+                try { localStorage.setItem(backupKey, raw); } catch (err) {}
+                storageWarning = 'Saved data could not be read. The original was backed up in this browser.';
+                return {};
+            }
+
+            let migrated = false;
+            const version = parseInt(localStorage.getItem('karm_schema_version') || '0', 10);
+            if (version < LOG_SCHEMA_VERSION) {
+                Object.keys(parsed).forEach(k => {
+                    // Legacy "fitness" became Gym. Neutral is a real category and is never rewritten.
+                    if (parsed[k] && parsed[k].category === 'fitness') {
+                        parsed[k].category = 'gym';
+                        migrated = true;
                     }
-                    return data;
-                } catch(e) {
-                    return {};
-                }
-            });
+                });
+                localStorage.setItem('karm_schema_version', String(LOG_SCHEMA_VERSION));
+            }
+            if (migrated) localStorage.setItem('karm_data', JSON.stringify(parsed));
+            return parsed;
+        };
+
+        const previousHourSlot = (from = new Date()) => {
+            const date = new Date(from);
+            let hour = date.getHours() - 1;
+            if (hour < 0) {
+                hour = 23;
+                date.setDate(date.getDate() - 1);
+            }
+            return { date, hour };
+        };
+
+        const hourRangeLabel = (h) => {
+            const start = h % 12 || 12;
+            const endH = (h + 1) % 24;
+            const end = endH % 12 || 12;
+            const startAmPm = h >= 12 ? 'PM' : 'AM';
+            const endAmPm = endH >= 12 ? 'PM' : 'AM';
+            return startAmPm === endAmPm
+                ? `${start}–${end} ${startAmPm}`
+                : `${start} ${startAmPm}–${end} ${endAmPm}`;
+        };
+
+        const hourShortLabel = (h) => h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`;
+
+        const shortDate = (date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        // --- Modal shell: dialog semantics, focus trap, Escape, backdrop click ---
+        const Modal = ({ children, onClose, labelledBy, maxWidth = 'max-w-lg', onKeyDown }) => {
+            const cardRef = useRef(null);
+            const closeRef = useRef(onClose);
+            closeRef.current = onClose;
+
+            useEffect(() => {
+                const previous = document.activeElement;
+                const card = cardRef.current;
+                const focusables = () => Array.from(card.querySelectorAll(
+                    'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+                )).filter(el => el.offsetParent !== null);
+                const first = card.querySelector('[data-autofocus]') || focusables()[0];
+                if (first) first.focus();
+                const onKey = (e) => {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        closeRef.current();
+                        return;
+                    }
+                    if (e.key !== 'Tab') return;
+                    const list = focusables();
+                    if (list.length === 0) return;
+                    const firstEl = list[0];
+                    const lastEl = list[list.length - 1];
+                    if (e.shiftKey && document.activeElement === firstEl) {
+                        e.preventDefault();
+                        lastEl.focus();
+                    } else if (!e.shiftKey && document.activeElement === lastEl) {
+                        e.preventDefault();
+                        firstEl.focus();
+                    }
+                };
+                document.addEventListener('keydown', onKey);
+                const previousOverflow = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
+                return () => {
+                    document.removeEventListener('keydown', onKey);
+                    document.body.style.overflow = previousOverflow;
+                    if (previous && typeof previous.focus === 'function') previous.focus();
+                };
+            }, []);
+
+            return (
+                <div
+                    className="fixed inset-0 z-[100] bg-[var(--overlay)] backdrop-blur-sm flex items-center justify-center p-4 modal-fade-in"
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) closeRef.current(); }}
+                >
+                    <div
+                        ref={cardRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby={labelledBy}
+                        onKeyDown={onKeyDown}
+                        className={`bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto p-6`}
+                    >
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [logs, setLogs] = useState(loadLogs);
 
             const [goals, setGoals] = useState(() => {
                 try {
@@ -442,22 +735,31 @@
             });
 
             const [viewDate, setViewDate] = useState(new Date());
+            const [calendarMonth, setCalendarMonth] = useState(() => {
+                const d = new Date();
+                return new Date(d.getFullYear(), d.getMonth(), 1);
+            });
             const [timerOn, setTimerOn] = useState(() => localStorage.getItem('karm_timer') === 'true');
             const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('karm_sound') === 'true');
+            const [theme, setTheme] = useState(() => {
+                const saved = localStorage.getItem('karm_theme');
+                return saved === 'light' || saved === 'dark' ? saved : 'dark';
+            });
             const [analyticsOpen, setAnalyticsOpen] = useState(false);
             const [activeTab, setActiveTab] = useState('trends');
             const [modals, setModals] = useState({ log: false, sleep: false, goals: false });
             const [selectedLogHour, setSelectedLogHour] = useState(null);
             
-            const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+            const [toast, setToast] = useState({ show: false, message: '', type: 'success', action: null });
             const [countdown, setCountdown] = useState('');
             const lastPromptHourRef = useRef(-1);
+            const toastTimerRef = useRef(null);
             
             const audioCtxRef = useRef(null);
             const alarmOscillatorRef = useRef(null);
 
             const [logText, setLogText] = useState('');
-            const [logCategory, setLogCategory] = useState('productive');
+            const [logCategory, setLogCategory] = useState(null);
             const [sleepSelection, setSleepSelection] = useState([]);
             const [tempGoals, setTempGoals] = useState({ productive: 8, sleep: 7 });
 
@@ -465,6 +767,11 @@
             useEffect(() => localStorage.setItem('karm_goals', JSON.stringify(goals)), [goals]);
             useEffect(() => localStorage.setItem('karm_timer', timerOn), [timerOn]);
             useEffect(() => localStorage.setItem('karm_sound', soundEnabled), [soundEnabled]);
+            useEffect(() => {
+                document.documentElement.dataset.theme = theme;
+                localStorage.setItem('karm_theme', theme);
+            }, [theme]);
+
 
             useEffect(() => {
                 if (getDateKey(viewDate) === getDateKey(new Date())) {
@@ -475,12 +782,23 @@
                 }
             }, [viewDate]);
 
-            const showToast = useCallback((message, type = 'success') => {
-                setToast({ show: true, message, type });
-                setTimeout(() => {
-                    setToast(prev => ({ ...prev, show: false }));
-                }, 3000);
+            const showToast = useCallback((message, type = 'success', action = null) => {
+                if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                setToast({ show: true, message, type, action });
+                toastTimerRef.current = setTimeout(() => {
+                    setToast(prev => ({ ...prev, show: false, action: null }));
+                }, action ? 6000 : 3200);
             }, []);
+
+            useEffect(() => {
+                if (storageWarning) {
+                    const message = storageWarning;
+                    storageWarning = null;
+                    showToast(message, 'error');
+                }
+            }, [showToast]);
+
+            useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
 
             const stopAlarm = useCallback(() => {
                 if (alarmOscillatorRef.current) {
@@ -530,7 +848,7 @@
                     const totalSec = 3600 - (min * 60 + sec);
                     const m = Math.floor(totalSec / 60);
                     const s = totalSec % 60;
-                    setCountdown(`Focus! Next log in: ${m}:${s.toString().padStart(2, '0')}`);
+                    setCountdown(`Next log in ${m}:${s.toString().padStart(2, '0')}`);
                     if (min === 0 && lastPromptHourRef.current !== currentHour) {
                         const prevHour = currentHour === 0 ? 23 : currentHour - 1;
                         const prevDate = new Date(now);
@@ -539,9 +857,10 @@
                         const logKey = `${dateKey}_${prevHour}`;
                         if (!logs[logKey]) {
                             lastPromptHourRef.current = currentHour;
+                            setViewDate(prevDate);
                             setSelectedLogHour({ date: prevDate, hour: prevHour });
                             setLogText('');
-                            setLogCategory('productive');
+                            setLogCategory(null);
                             setModals(m => ({ ...m, log: true }));
                             startAlarm();
                         }
@@ -552,29 +871,36 @@
                 return () => clearInterval(interval);
             }, [timerOn, logs, startAlarm, stopAlarm]);
 
-            const todayStats = getDayStats(new Date(), logs);
-            const loggedHours = 24 - todayStats.unlogged;
-            const productiveHours = todayStats.productive + todayStats.gym;
+            const viewDateStats = useMemo(() => {
+                const s = getDayStats(viewDate, logs);
+                const counts = {};
+                Object.keys(s).forEach(k => counts[k] = s[k]);
+                return counts;
+            }, [viewDate, logs]);
+
+            const loggedHours = 24 - viewDateStats.unlogged;
+            const productiveHours = viewDateStats.productive + viewDateStats.gym;
             
             const openLogModal = useCallback((date, hour) => {
                 const key = `${getDateKey(date)}_${hour}`;
                 const existing = logs[key];
                 setSelectedLogHour({ date, hour });
                 setLogText(existing ? existing.text : '');
-                setLogCategory(existing ? existing.category : 'productive');
+                setLogCategory(existing ? existing.category : null);
                 setModals(m => ({ ...m, log: true }));
             }, [logs]);
 
             const handleLogSave = () => {
-                if (!selectedLogHour) return;
+                if (!selectedLogHour || !logCategory) return;
                 const key = `${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`;
+                const isEdit = Boolean(logs[key]);
                 setLogs(prev => ({
                     ...prev,
-                    [key]: { text: logText, category: logCategory, timestamp: new Date().toISOString() }
+                    [key]: { text: logText.trim(), category: logCategory, timestamp: new Date().toISOString() }
                 }));
                 stopAlarm();
-                setModals({ ...modals, log: false });
-                showToast('Activity logged successfully');
+                setModals(m => ({ ...m, log: false }));
+                showToast(isEdit ? 'Activity updated' : 'Activity logged');
             };
 
             const toggleSleepHour = (h) => {
@@ -582,30 +908,46 @@
             };
 
             const saveSleep = () => {
+                if (sleepSelection.length === 0) return;
                 const dateKey = getDateKey(viewDate);
                 const newLogs = { ...logs };
+                let logged = 0;
+                let kept = 0;
                 sleepSelection.forEach(h => {
                     const key = `${dateKey}_${h}`;
+                    const existing = logs[key];
+                    if (existing && existing.category !== 'sleep') {
+                        kept++;
+                        return;
+                    }
                     newLogs[key] = { text: 'Sleep', category: 'sleep', timestamp: new Date().toISOString() };
+                    logged++;
                 });
                 setLogs(newLogs);
-                setModals({ ...modals, sleep: false });
+                setModals(m => ({ ...m, sleep: false }));
                 setSleepSelection([]);
-                showToast(`Logged ${sleepSelection.length} hours of sleep`);
+                if (logged > 0) {
+                    showToast(kept > 0
+                        ? `Logged ${logged}h of sleep. ${kept} existing ${kept === 1 ? 'log was' : 'logs were'} left unchanged.`
+                        : `Logged ${logged}h of sleep`);
+                } else {
+                    showToast('Those hours are already logged. Nothing changed.', 'error');
+                }
             };
 
             const saveGoals = () => {
-                setGoals(tempGoals);
-                setModals({ ...modals, goals: false });
-                showToast('Goals updated successfully');
+                const clamp = (v) => Math.max(1, Math.min(24, Number.isFinite(v) ? v : 1));
+                setGoals({ productive: clamp(tempGoals.productive), sleep: clamp(tempGoals.sleep) });
+                setModals(m => ({ ...m, goals: false }));
+                showToast('Goals updated');
             };
 
             const copyYesterday = () => {
-                const today = new Date();
-                const yesterday = new Date(today);
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yKey = getDateKey(yesterday);
-                const tKey = getDateKey(today);
+                const target = new Date(getDateKey(viewDate).split('-')[0], Number(getDateKey(viewDate).split('-')[1]) - 1, Number(getDateKey(viewDate).split('-')[2]));
+                const source = new Date(target);
+                source.setDate(source.getDate() - 1);
+                const yKey = getDateKey(source);
+                const tKey = getDateKey(target);
                 const newLogs = { ...logs };
                 let copiedCount = 0;
                 for (let h = 0; h < 24; h++) {
@@ -618,25 +960,34 @@
                 }
                 if (copiedCount > 0) {
                     setLogs(newLogs);
-                    showToast(`Copied ${copiedCount} logs from yesterday.`, 'success');
+                    showToast(`Copied ${copiedCount} ${copiedCount === 1 ? 'log' : 'logs'} into ${isToday ? 'today' : 'this day'}.`);
                 } else {
-                    showToast("Nothing new to copy or today is full.", 'error');
+                    showToast(`Nothing to copy, or this day is already full.`, 'error');
                 }
             };
 
             const deleteLog = () => {
                 if (!selectedLogHour) return;
                 const key = `${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`;
-                const newLogs = { ...logs };
-                delete newLogs[key];
-                setLogs(newLogs);
+                const removed = logs[key];
+                setLogs(prev => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                });
                 stopAlarm();
-                setModals({ ...modals, log: false });
-                showToast('Activity deleted');
+                setModals(m => ({ ...m, log: false }));
+                showToast('Activity deleted', 'error', {
+                    label: 'Undo',
+                    onClick: () => {
+                        setLogs(prev => ({ ...prev, [key]: removed }));
+                        showToast('Activity restored');
+                    }
+                });
             };
 
             const prodProgress = Math.min((productiveHours / (goals.productive || 1)) * 100, 100);
-            const sleepProgress = Math.min((todayStats.sleep / (goals.sleep || 1)) * 100, 100);
+            const sleepProgress = Math.min((viewDateStats.sleep / (goals.sleep || 1)) * 100, 100);
             const isToday = getDateKey(viewDate) === getDateKey(new Date());
             const currentHour = new Date().getHours();
 
@@ -650,486 +1001,667 @@
                 return counts;
             }, [logs]);
 
-            const viewDateStats = useMemo(() => {
-                const s = getDayStats(viewDate, logs);
-                const counts = {};
-                Object.keys(s).forEach(k => counts[k] = s[k]);
-                return counts;
-            }, [viewDate, logs]);
-
             const allTimeBest = useMemo(() => {
-                let maxScore = 0;
+                let best = null;
                 const uniqueDates = new Set();
                 Object.keys(logs).forEach(key => uniqueDates.add(key.split('_')[0]));
-                if (uniqueDates.size === 0) return 0;
-                
                 uniqueDates.forEach(dateStr => {
-                    const parts = dateStr.split('-');
-                    if (parts.length === 3) {
-                        const d = new Date(parts[0], parts[1] - 1, parts[2]);
-                        const score = getProductivityScore(getDayStats(d, logs));
-                        if (score > maxScore) maxScore = score;
+                    const parts = dateStr.split('-').map(Number);
+                    if (parts.length !== 3) return;
+                    const stats = getDayStats(new Date(parts[0], parts[1] - 1, parts[2]), logs);
+                    const active = 24 - stats.unlogged - stats.sleep;
+                    if (active <= 0) return;
+                    const score = getProductivityScore(stats);
+                    if (!best || score > best.score) {
+                        best = { score, logged: 24 - stats.unlogged, active, date: new Date(parts[0], parts[1] - 1, parts[2]) };
                     }
                 });
-                return maxScore;
+                return best;
             }, [logs]);
 
             const vsLastWeek = useMemo(() => {
-                let last7Score = 0;
-                let prev7Score = 0;
-                for (let i = 0; i < 7; i++) {
-                    const d1 = new Date(); d1.setDate(d1.getDate() - i);
-                    last7Score += getProductivityScore(getDayStats(d1, logs));
-                    
-                    const d2 = new Date(); d2.setDate(d2.getDate() - (i + 7));
-                    prev7Score += getProductivityScore(getDayStats(d2, logs));
+                const averageWindow = (offset) => {
+                    let sum = 0;
+                    let days = 0;
+                    for (let i = offset; i < offset + 7; i++) {
+                        const d = new Date(); d.setDate(d.getDate() - i);
+                        const stats = getDayStats(d, logs);
+                        if (24 - stats.unlogged - stats.sleep > 0) {
+                            sum += getProductivityScore(stats);
+                            days++;
+                        }
+                    }
+                    return { avg: days > 0 ? sum / days : null, days };
+                };
+                const recent = averageWindow(1);
+                const prior = averageWindow(8);
+                if (recent.days < 3 || prior.days < 3 || !prior.avg) {
+                    return { available: false, val: 0, trend: 'flat' };
                 }
-                last7Score = last7Score / 7;
-                prev7Score = prev7Score / 7;
-                
-                if (prev7Score === 0 && last7Score > 0) return { val: 100, trend: 'up' };
-                if (prev7Score === 0) return { val: 0, trend: 'flat' };
-                
-                const diff = ((last7Score - prev7Score) / prev7Score) * 100;
-                return { val: Math.abs(Math.round(diff)), trend: diff >= 0 ? 'up' : diff < 0 ? 'down' : 'flat' };
+                const diff = ((recent.avg - prior.avg) / prior.avg) * 100;
+                return {
+                    available: true,
+                    val: Math.abs(Math.round(diff)),
+                    trend: diff >= 0.5 ? 'up' : diff <= -0.5 ? 'down' : 'flat'
+                };
             }, [logs]);
+
+            const streak = useMemo(() => calculateStreak(logs), [logs]);
+            const activeLogged = 24 - viewDateStats.unlogged - viewDateStats.sleep;
+            const viewScore = activeLogged > 0 ? getProductivityScore(viewDateStats) : null;
 
             const totalCapacity = activeTab === 'categories' ? 168 : 24;
             const currentData = activeTab === 'categories' ? weekData : viewDateStats;
-            const totalLoggedHours = Object.keys(currentData).filter(k => k !== 'unlogged').reduce((acc, k) => acc + (currentData[k] || 0), 0);
-            const sleepHours = currentData['sleep'] || 0;
-            const activeHours = totalLoggedHours - sleepHours;
+            const coveredHours = totalCapacity - (currentData['unlogged'] || 0);
+
+            const goToday = () => {
+                const now = new Date();
+                setViewDate(now);
+                setCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+            };
+
+            const loggableCategories = Object.entries(CATEGORIES).filter(([key]) => key !== 'unlogged');
+            const selectedExistingLog = selectedLogHour
+                ? logs[`${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`]
+                : null;
+            const sleepConflicts = sleepSelection.filter(h => {
+                const existing = logs[`${getDateKey(viewDate)}_${h}`];
+                return existing && existing.category !== 'sleep';
+            }).length;
+
+            const nowMonth = new Date();
+            const calendarIsCurrent = calendarMonth.getFullYear() === nowMonth.getFullYear() && calendarMonth.getMonth() === nowMonth.getMonth();
+            const todayDisabled = isToday && calendarIsCurrent;
 
             return (
                 <div className="h-screen w-screen flex flex-col overflow-hidden bg-[var(--bg-primary)] font-sans text-[var(--text-primary)]">
                     {toast.show && (
-                        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[150] bg-[var(--bg-tertiary)] border border-[var(--border)] text-white px-6 py-3 rounded-full shadow-lg toast-slide-up flex items-center gap-3">
-                            {toast.type === 'success' ? <Activity size={18} className="text-[var(--productive)]"/> : <XCircle size={18} className="text-[var(--wasted)]"/>}
-                            <span className="font-medium text-sm">{toast.message}</span>
+                        <div role="status" aria-live="polite" className="fixed top-5 left-1/2 -translate-x-1/2 z-[150] max-w-[calc(100vw-2rem)] bg-[var(--bg-secondary)] border border-[var(--border-strong)] text-[var(--text-primary)] pl-4 pr-3 py-2.5 rounded-xl shadow-[0_12px_32px_var(--shadow-color)] toast-slide-up flex items-center gap-3">
+                            <span className="shrink-0">
+                                {toast.type === 'success' ? <Activity size={16} className="text-[var(--productive)]"/> : <XCircle size={16} className="text-[var(--wasted)]"/>}
+                            </span>
+                            <span className="text-sm font-medium leading-snug">{toast.message}</span>
+                            {toast.action && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                                        toast.action.onClick();
+                                    }}
+                                    className="shrink-0 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] px-2.5 py-1.5 text-sm font-semibold text-[var(--text-primary)] transition-colors"
+                                >
+                                    {toast.action.label}
+                                </button>
+                            )}
                         </div>
                     )}
 
                     {/* Header */}
-                    <header className="bg-[var(--bg-primary)] border-b border-[var(--border)] px-8 py-4 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-3 w-[200px]">
-                            <div className="bg-[var(--accent)] p-2 rounded-lg"><Clock size={20} className="text-white"/></div>
-                            <h1 className="section-heading tracking-tight text-xl">KARM</h1>
+                    <header className="bg-[var(--bg-primary)] border-b border-[var(--border)] px-4 sm:px-6 lg:px-8 py-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="bg-[var(--accent)] p-1.5 rounded-lg"><Clock size={18} className="text-white" aria-hidden="true"/></div>
+                            <h1 className="text-lg font-semibold tracking-tight">KARM</h1>
                         </div>
                         
-                        <DigitalClock />
+                        <div className="justify-self-center">
+                            <DigitalClock />
+                        </div>
 
-                        <div className="flex items-center gap-3 w-[200px] justify-end">
+                        <div className="flex items-center gap-2 justify-self-end">
+                            <button
+                                type="button"
+                                onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+                                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+                                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+                                className="btn-quiet p-2 rounded-lg text-[var(--text-secondary)]"
+                            >
+                                {theme === 'light'
+                                    ? <Moon size={18} aria-hidden="true"/>
+                                    : <Sun size={18} aria-hidden="true"/>}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={copyYesterday}
+                                aria-label={isToday ? 'Copy yesterday' : 'Copy previous day'}
+                                title={isToday ? 'Copy yesterday' : 'Copy previous day'}
+                                className="btn-quiet p-2 rounded-lg text-[var(--text-secondary)] hidden sm:flex"
+                            >
+                                <Copy size={17} aria-hidden="true"/>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setModals(prev => ({ ...prev, sleep: true }))}
+                                aria-label="Log sleep"
+                                className="btn-primary text-sm px-3 sm:px-4 py-2 flex items-center gap-2 whitespace-nowrap"
+                            >
+                                <Moon size={15} aria-hidden="true"/>
+                                <span className="sm:hidden">Sleep</span>
+                                <span className="hidden sm:inline">Log Sleep</span>
+                            </button>
                             <button 
-                                onClick={() => setViewDate(new Date())}
-                                className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[#2f2f2f] text-[var(--text-secondary)] hover:text-white rounded-lg transition-colors font-medium text-sm"
+                                type="button"
+                                onClick={goToday}
+                                disabled={todayDisabled}
+                                className="btn-quiet px-3 sm:px-4 py-2 text-sm font-medium whitespace-nowrap disabled:text-[var(--text-tertiary)] disabled:opacity-60"
                             >
                                 Today
                             </button>
-                            <button onClick={() => setAnalyticsOpen(!analyticsOpen)} className="btn-primary text-sm px-4 py-2">
-                                {analyticsOpen ? 'Hide' : 'Show'} Analytics
+                            <button
+                                type="button"
+                                onClick={() => setAnalyticsOpen(open => !open)}
+                                aria-expanded={analyticsOpen}
+                                aria-controls="analytics-panel"
+                                aria-label={analyticsOpen ? 'Hide analytics' : 'Show analytics'}
+                                className="btn-quiet px-3 py-2 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                            >
+                                <BarChart size={15} aria-hidden="true"/>
+                                <span className="hidden xl:inline">{analyticsOpen ? 'Hide Analytics' : 'Show Analytics'}</span>
                             </button>
                         </div>
                     </header>
 
                     {/* Content */}
-                    <div className="flex flex-1 overflow-hidden">
+                    <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
                         {/* Sidebar */}
-                        <div className="w-[300px] h-full overflow-y-auto p-4 flex flex-col gap-4 border-r border-[var(--border)] bg-[var(--bg-primary)]">
+                        <aside id="app-sidebar" className="order-2 lg:order-1 w-full lg:w-[320px] shrink-0 lg:h-full overflow-visible lg:overflow-y-auto p-4 flex flex-col gap-4 border-t lg:border-t-0 lg:border-r border-[var(--border)] bg-[var(--bg-primary)]">
+                            {/* Quick Actions removed: Log Sleep lives in the header; the grid still opens any hour. */}
+
                             <MiniCalendar 
                                 logs={logs} 
-                                currentMonth={viewDate} 
-                                onSelectDate={setViewDate}
-                                onPrevMonth={() => {
-                                    const newDate = new Date(viewDate);
-                                    newDate.setMonth(newDate.getMonth() - 1);
-                                    setViewDate(newDate);
+                                selectedDate={viewDate}
+                                month={calendarMonth}
+                                onSelectDate={(date) => {
+                                    setViewDate(date);
+                                    setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
                                 }}
-                                onNextMonth={() => {
-                                    const newDate = new Date(viewDate);
-                                    newDate.setMonth(newDate.getMonth() + 1);
-                                    setViewDate(newDate);
-                                }}
+                                onPrevMonth={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                                onNextMonth={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
                             />
-
-                            {/* Focus Timer */}
-                            <div className="widget-card">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h4 className="subsection flex items-center gap-2">
-                                        <div className={timerOn ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}><Clock size={18}/></div>
-                                        Focus Timer
-                                    </h4>
-                                    <button 
-                                        onClick={() => setSoundEnabled(!soundEnabled)} 
-                                        className={`p-2 rounded-lg transition-colors ${soundEnabled ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}
-                                    >
-                                        {soundEnabled ? <Volume2 size={14}/> : <VolumeX size={14}/>}
-                                    </button>
-                                </div>
-                                <div className="text-center min-h-[40px] flex items-center justify-center mb-3">
-                                    {timerOn ? (
-                                        <div className="body-text font-mono font-bold text-[var(--accent)] tracking-wider">{countdown}</div>
-                                    ) : (
-                                        <div className="small-label">Timer is OFF</div>
-                                    )}
-                                </div>
-                                <button onClick={() => setTimerOn(!timerOn)} className="btn-primary w-full">
-                                    {timerOn ? 'STOP' : 'START'} TIMER
-                                </button>
-                            </div>
 
                             {/* Goals */}
                             <div className="widget-card">
-                                <h4 className="subsection mb-4 flex items-center gap-2"><Target className="text-[var(--accent)]" /> Daily Goals</h4>
+                                <div className="flex items-center justify-between gap-2 mb-4">
+                                    <h4 className="subsection flex items-baseline gap-2">
+                                        <Target className="text-[var(--accent)] self-center" size={18} aria-hidden="true" /> Daily Goals
+                                        <span className="micro-label font-normal">{isToday ? 'Today' : shortDate(viewDate)}</span>
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setTempGoals(goals); setModals(prev => ({ ...prev, goals: true })); }}
+                                        className="btn-quiet px-3 py-1.5 text-xs font-medium rounded-lg"
+                                    >
+                                        Edit
+                                    </button>
+                                </div>
                                 <div className="space-y-4">
                                     <div>
                                         <div className="flex justify-between body-text mb-2">
-                                            <span>Productive Time</span>
-                                            <span className="font-mono font-bold">{productiveHours}h / {goals.productive}h</span>
+                                            <span>Productive time</span>
+                                            <span className="font-mono mono-nums font-semibold">{productiveHours}h / {goals.productive}h</span>
                                         </div>
-                                        <div className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden">
+                                        <div
+                                            role="progressbar"
+                                            aria-label="Productive time goal"
+                                            aria-valuemin="0"
+                                            aria-valuemax={goals.productive}
+                                            aria-valuenow={Math.min(productiveHours, goals.productive)}
+                                            className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden"
+                                        >
                                             <div className="bg-[var(--productive)] h-2 rounded-full transition-all duration-500" style={{ width: `${prodProgress}%` }}></div>
                                         </div>
                                     </div>
                                     <div>
                                         <div className="flex justify-between body-text mb-2">
                                             <span>Sleep</span>
-                                            <span className="font-mono font-bold">{todayStats.sleep}h / {goals.sleep}h</span>
+                                            <span className="font-mono mono-nums font-semibold">{viewDateStats.sleep}h / {goals.sleep}h</span>
                                         </div>
-                                        <div className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden">
+                                        <div
+                                            role="progressbar"
+                                            aria-label="Sleep goal"
+                                            aria-valuemin="0"
+                                            aria-valuemax={goals.sleep}
+                                            aria-valuenow={Math.min(viewDateStats.sleep, goals.sleep)}
+                                            className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden"
+                                        >
                                             <div className="bg-[var(--sleep)] h-2 rounded-full transition-all duration-500" style={{ width: `${sleepProgress}%` }}></div>
                                         </div>
                                     </div>
                                 </div>
-                                <button 
-                                    onClick={() => { setTempGoals(goals); setModals({...modals, goals: true}); }}
-                                    className="btn-primary w-full mt-4"
-                                >
-                                    Edit Goals
-                                </button>
                             </div>
 
-                            {/* Quick Actions */}
+                            {/* Focus Timer */}
                             <div className="widget-card">
-                                <h4 className="subsection mb-4">Quick Actions</h4>
-                                <div className="grid grid-cols-1 gap-2">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="subsection flex items-center gap-2">
+                                        <span className={timerOn ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}><Clock size={18} aria-hidden="true"/></span>
+                                        Focus Timer
+                                    </h4>
                                     <button 
-                                        onClick={() => {
-                                            const now = new Date();
-                                            openLogModal(now, now.getHours() === 0 ? 23 : now.getHours() - 1);
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-tertiary)] rounded-lg hover:bg-[#2f2f2f] body-text transition-colors"
+                                        type="button"
+                                        onClick={() => setSoundEnabled(!soundEnabled)}
+                                        aria-label={soundEnabled ? 'Mute timer alarm' : 'Enable timer alarm'}
+                                        aria-pressed={soundEnabled}
+                                        className={`btn-quiet p-2 rounded-lg ${soundEnabled ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]' : 'text-[var(--text-secondary)]'}`}
                                     >
-                                        <Clock size={16} className="text-[var(--accent)]"/> Log Previous Hour
-                                    </button>
-                                    <button 
-                                        onClick={copyYesterday}
-                                        className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-tertiary)] rounded-lg hover:bg-[#2f2f2f] body-text transition-colors"
-                                    >
-                                        <Copy size={16} className="text-[var(--productive)]"/> Copy Yesterday
-                                    </button>
-                                    <button 
-                                        onClick={() => setModals({ ...modals, sleep: true })}
-                                        className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-tertiary)] rounded-lg hover:bg-[#2f2f2f] body-text transition-colors"
-                                    >
-                                        <Moon size={16} className="text-[var(--sleep)]"/> Log Sleep
+                                        {soundEnabled ? <Volume2 size={14} aria-hidden="true"/> : <VolumeX size={14} aria-hidden="true"/>}
                                     </button>
                                 </div>
+                                <div className="text-center flex flex-col items-center justify-center gap-1.5 mb-4 pt-1">
+                                    <div className={`font-mono mono-nums text-[32px] leading-none font-semibold tracking-tight ${timerOn ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`}>
+                                        {timerOn ? countdown.replace('Next log in ', '') : '00:00'}
+                                    </div>
+                                    <div className="micro-label">{timerOn ? 'until the next hourly prompt' : 'Timer is off'}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setTimerOn(!timerOn)}
+                                    aria-pressed={timerOn}
+                                    className="btn-quiet w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium"
+                                >
+                                    {timerOn ? 'Stop Timer' : 'Start Timer'}
+                                </button>
+                                <p className="micro-label mt-2.5 text-center">Prompts you at the top of each hour.</p>
                             </div>
-                        </div>
+                        </aside>
 
                         {/* Main Grid View */}
-                        <div className="flex-1 h-full flex flex-col overflow-hidden bg-[var(--bg-primary)]">
-                            <div className="text-center pt-8 pb-6">
-                                <h2 className="section-heading text-5xl font-bold tracking-tight">
-                                    {viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                                </h2>
-                                <div className="small-label mt-2 text-[var(--text-secondary)]">
-                                    {viewDate.toLocaleDateString('en-US', { year: 'numeric' })}
+                        <main className="order-1 lg:order-2 flex-1 min-w-0 flex flex-col lg:h-full lg:overflow-hidden bg-[var(--bg-primary)]">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 sm:flex sm:items-start sm:justify-between px-4 sm:px-6 pt-6 pb-5">
+                                <div className="col-span-2 min-w-0 sm:col-span-1">
+                                    <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight">
+                                        {viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                    </h2>
+                                    <p className="small-label mt-1.5">
+                                        <span className="font-mono mono-nums font-semibold text-[var(--text-primary)]">{loggedHours}/24</span> hours logged
+                                        {streak > 0 && <> · <span title="Consecutive days with at least 5 hours logged">{streak}-day streak</span></>}
+                                    </p>
+                                </div>
+                                <div className="col-span-2 flex flex-col items-start gap-0.5 sm:col-span-1 sm:block sm:shrink-0 sm:text-right">
+                                    <div className="flex items-baseline gap-2 sm:justify-end">
+                                        <span className={`hero-number ${viewScore === null ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
+                                            {viewScore === null ? '—' : `${viewScore}%`}
+                                        </span>
+                                        <span className="small-label">{viewScore === null ? 'no score' : isToday ? 'today' : 'score'}</span>
+                                    </div>
+                                    <div className="micro-label mt-1 max-w-[280px] text-left sm:text-right">
+                                        {viewScore === null ? (
+                                            'No active hours logged'
+                                        ) : (
+                                            <>
+                                                <span className="block">Productive + Gym + ½ Semi + ½ Errands</span>
+                                                <span className="block">Sleep excluded</span>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto px-6 pb-24">
-                                <div className="grid grid-cols-6 gap-3 auto-rows-[100px]">
+                            <div className="flex-1 lg:overflow-y-auto px-4 sm:px-6 pb-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2.5 sm:gap-3 auto-rows-[104px]">
                                     {Array.from({length: 24}).map((_, h) => {
                                         const key = `${getDateKey(viewDate)}_${h}`;
                                         const log = logs[key];
                                         const cat = (log && CATEGORIES[log.category]) ? CATEGORIES[log.category] : CATEGORIES.unlogged;
                                         const IconComponent = cat.icon;
-                                        
-                                        const startH = h;
-                                        const endH = (h + 1) % 24;
-                                        const getAmPm = (hr) => hr >= 12 ? 'PM' : 'AM';
-                                        const get12 = (hr) => hr % 12 || 12;
-                                        const timeLabel = getAmPm(startH) === getAmPm(endH) 
-                                            ? `${get12(startH)}-${get12(endH)} ${getAmPm(startH)}` 
-                                            : `${get12(startH)} ${getAmPm(startH)}-${get12(endH)} ${getAmPm(endH)}`;
-
+                                        const timeLabel = hourRangeLabel(h);
                                         const isCurrentHour = isToday && h === currentHour;
 
                                         return (
-                                            <div 
+                                            <button 
+                                                type="button"
                                                 key={h} 
                                                 id={`hour-${h}`}
                                                 onClick={() => openLogModal(viewDate, h)}
-                                                className={`widget-card h-full p-3 group relative overflow-hidden cursor-pointer timeline-block ${!log ? 'border-dashed bg-transparent flex flex-col justify-between' : ''} ${isCurrentHour ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg-primary)] shadow-[0_0_15px_rgba(0,113,227,0.4)]' : ''}`}
-                                                style={{ backgroundColor: log ? cat.color : 'transparent' }}
+                                                data-logged={log ? 'true' : 'false'}
+                                                aria-label={`Log ${timeLabel}${log ? `, logged as ${cat.label}${log.text ? `. Note: ${log.text}` : ''}` : ', unlogged'}`}
+                                                title={log && log.text ? log.text : undefined}
+                                                style={log ? { backgroundColor: cat.color, color: cat.ink } : undefined}
+                                                className={`timeline-block group relative text-left h-full rounded-2xl p-3 overflow-hidden flex flex-col justify-between
+                                                    ${log ? 'border border-transparent' : 'border border-dashed border-[var(--border-strong)] hover:border-[var(--text-tertiary)]'}
+                                                    ${isCurrentHour ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg-primary)]' : ''}`}
                                             >
-                                                {isCurrentHour && (
-                                                    <div className="absolute top-3 right-3 flex h-3 w-3 z-10">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-white shadow-[0_0_5px_white]"></span>
-                                                    </div>
-                                                )}
-
-                                                <div className={`flex flex-col justify-between h-full transition-opacity duration-200 ${log ? 'group-hover:opacity-0' : ''}`}>
-                                                    <div className={`font-mono text-xl font-bold leading-tight opacity-90 ${log ? 'text-white' : 'text-[var(--text-secondary)]'}`}>
+                                                <span className="flex items-start justify-between gap-2 w-full">
+                                                    <span className={`font-mono mono-nums text-[12px] font-semibold uppercase tracking-wide ${log ? 'opacity-80' : 'text-[var(--text-tertiary)]'}`}>
                                                         {timeLabel}
-                                                    </div>
-                                                    <div className={`body-text font-bold leading-tight flex items-center gap-2 ${log ? 'text-white' : 'text-[var(--text-secondary)]'}`}>
-                                                        {log && IconComponent && <IconComponent size={18} />}
-                                                        {log ? cat.label : '+ Log Activity'}
-                                                    </div>
-                                                </div>
+                                                    </span>
+                                                    {isCurrentHour ? (
+                                                        <span className="relative flex h-2.5 w-2.5 mt-0.5" aria-hidden="true">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-60"></span>
+                                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-current"></span>
+                                                        </span>
+                                                    ) : null}
+                                                </span>
 
-                                                {log && (
-                                                    <div className="absolute inset-0 p-3 flex items-center justify-center text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 backdrop-blur-sm z-0">
-                                                        <div className="text-sm font-medium leading-snug text-white overflow-y-auto max-h-full w-full break-words">
-                                                            {log.text || "No description"}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                <span className="w-full mt-2">
+                                                    {log ? (
+                                                        <>
+                                                            <span className="flex items-center gap-2 text-[17px] font-semibold leading-tight">
+                                                                <IconComponent size={17} aria-hidden="true"/>{cat.label}
+                                                            </span>
+                                                            {log.text && (
+                                                                <span className="mt-1 block truncate text-[12px] leading-tight opacity-85">{log.text}</span>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <span className="flex items-center gap-2 text-[15px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                                                            <Plus size={16} aria-hidden="true"/>Log Activity
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </button>
                                         );
                                     })}
                                 </div>
                             </div>
-                        </div>
+                        </main>
                     </div>
 
                     {/* Bottom Analytics Panel */}
-                    <div className={`fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border)] transition-all duration-300 z-50 flex flex-col ${analyticsOpen ? 'h-[400px]' : 'h-12'}`}>
-                        <div className="flex items-center justify-between px-8 py-3 border-b border-[var(--border)] shrink-0">
-                            <div className="flex gap-8">
-                                {['Trends', 'Categories', 'Daily View'].map(tab => (
-                                    <button 
-                                        key={tab}
-                                        onClick={() => { setActiveTab(tab.toLowerCase()); setAnalyticsOpen(true); }}
-                                        className={`subsection pb-1 transition-colors ${activeTab === tab.toLowerCase() && analyticsOpen ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
+                    <aside id="analytics-panel" aria-label="Analytics" className={`shrink-0 w-full bg-[var(--bg-secondary)] border-t border-[var(--border)] transition-[height] duration-300 flex flex-col max-h-[70vh] ${analyticsOpen ? 'h-[420px]' : 'h-12'}`}>
+                        <div className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 py-3 border-b border-[var(--border)] shrink-0">
+                            <div className="flex gap-5 sm:gap-8 overflow-x-auto">
+                                {['Trends', 'Categories', 'Daily View'].map(tab => {
+                                    const isActive = activeTab === tab.toLowerCase() && analyticsOpen;
+                                    return (
+                                        <button 
+                                            type="button"
+                                            key={tab}
+                                            onClick={() => { setActiveTab(tab.toLowerCase()); setAnalyticsOpen(true); }}
+                                            aria-pressed={isActive}
+                                            className={`text-[15px] font-medium pb-1 -mb-px border-b-2 whitespace-nowrap transition-colors ${isActive ? 'text-[var(--text-primary)] border-[var(--accent)]' : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
+                                        >
+                                            {tab}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <button onClick={() => setAnalyticsOpen(!analyticsOpen)} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[var(--text-secondary)]">
-                                {analyticsOpen ? <ChevronDown size={20}/> : <ChevronUp size={20}/>}
+                            <button
+                                type="button"
+                                onClick={() => setAnalyticsOpen(open => !open)}
+                                aria-expanded={analyticsOpen}
+                                aria-controls="analytics-panel"
+                                aria-label={analyticsOpen ? 'Collapse analytics' : 'Expand analytics'}
+                                className="btn-quiet px-3 py-2 rounded-lg text-[var(--text-secondary)] shrink-0 flex items-center gap-2"
+                            >
+                                {analyticsOpen ? <ChevronDown size={18} aria-hidden="true"/> : <ChevronUp size={18} aria-hidden="true"/>}
+                                <span className="text-sm font-medium">{analyticsOpen ? 'Collapse' : 'Expand'}</span>
                             </button>
                         </div>
 
                         {analyticsOpen && (
-                            <div className="flex-1 p-6 overflow-hidden bg-[var(--bg-primary)]">
+                            <div className="flex-1 p-4 sm:p-6 overflow-y-auto bg-[var(--bg-primary)]">
                                 {activeTab === 'trends' && (
-                                    <div className="h-full flex gap-6">
-                                        <div className="flex-1 relative">
-                                            <h5 className="absolute top-4 left-4 small-label uppercase tracking-wider">30 Day Productivity Trend</h5>
-                                            <div className="h-full pt-8">
-                                                <TrendChart logs={logs} />
+                                    <div className="h-full flex flex-col lg:flex-row gap-4 lg:gap-6">
+                                        <div className="flex-1 min-h-[180px] flex flex-col">
+                                            <h5 className="small-label font-medium text-[var(--text-primary)] mb-2">30-day productivity trend</h5>
+                                            <div className="flex-1 min-h-[160px]">
+                                                <TrendChart logs={logs} theme={theme} />
                                             </div>
                                         </div>
-                                        <div className="w-64 grid grid-rows-2 gap-4">
-                                            <div className="bg-[var(--bg-secondary)] p-4 rounded-lg border border-[var(--border)]">
-                                                <div className="hero-number text-[var(--productive)]">{allTimeBest}%</div>
-                                                <div className="small-label">All-time Best</div>
-                                            </div>
-                                            <div className="bg-[var(--bg-secondary)] p-4 rounded-lg border border-[var(--border)]">
-                                                <div className={`hero-number ${vsLastWeek.trend === 'up' ? 'text-[var(--accent)]' : vsLastWeek.trend === 'down' ? 'text-[var(--wasted)]' : 'text-[var(--text-secondary)]'}`}>
-                                                    {vsLastWeek.trend === 'up' ? '↑ ' : vsLastWeek.trend === 'down' ? '↓ ' : ''}{vsLastWeek.val}%
+                                        <div className="w-full lg:w-64 shrink-0 grid grid-cols-2 lg:grid-cols-1 lg:grid-rows-2 gap-3 lg:gap-4">
+                                            <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border)]">
+                                                <div className={`hero-number ${allTimeBest ? 'text-[var(--productive)]' : 'text-[var(--text-tertiary)]'}`}>
+                                                    {allTimeBest ? `${allTimeBest.score}%` : '—'}
                                                 </div>
-                                                <div className="small-label">vs Last Week</div>
+                                                <div className="small-label mt-1">All-time best</div>
+                                                <div className="micro-label mt-0.5">
+                                                    {allTimeBest ? `${allTimeBest.logged}h logged · ${shortDate(allTimeBest.date)}` : 'Log a day to start'}
+                                                </div>
+                                            </div>
+                                            <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border)]">
+                                                <div className={`hero-number ${vsLastWeek.available ? vsLastWeek.trend === 'up' ? 'text-[var(--productive)]' : vsLastWeek.trend === 'down' ? 'text-[var(--wasted)]' : 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
+                                                    {vsLastWeek.available ? `${vsLastWeek.trend === 'up' ? '↑ ' : vsLastWeek.trend === 'down' ? '↓ ' : ''}${vsLastWeek.val}%` : '—'}
+                                                </div>
+                                                <div className="small-label mt-1">vs Last Week</div>
+                                                <div className="micro-label mt-0.5">
+                                                    {vsLastWeek.available ? 'Average of logged days' : 'Not enough history yet'}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 )}
 
                                 {(activeTab === 'categories' || activeTab === 'daily view') && (
-                                    <div className="h-full flex gap-6">
-                                        <div className="w-1/3 relative">
-                                            <DonutChart 
-                                                data={activeTab === 'categories' ? weekData : viewDateStats} 
-                                                totalCapacity={totalCapacity}
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-200">
-                                                <div className="text-center">
-                                                    <div className="hero-number text-[var(--text-primary)]">
-                                                        {activeTab === 'categories' ? '7d' : viewDate.getDate()}
-                                                    </div>
-                                                    <div className="small-label">
-                                                        {activeTab === 'categories' ? 'Summary' : viewDate.toLocaleDateString('en-US', {weekday: 'short'})}
+                                    coveredHours === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-center gap-1 py-8">
+                                            <div className="body-text text-[var(--text-secondary)]">
+                                                No hours logged {activeTab === 'categories' ? 'in the last 7 days' : 'for this date'}.
+                                            </div>
+                                            <div className="micro-label">Log an hour to see the breakdown.</div>
+                                        </div>
+                                    ) : (
+                                        <div className="h-full flex flex-col md:flex-row gap-4 lg:gap-6">
+                                            <div className="relative w-full md:w-1/3 min-h-[190px] shrink-0">
+                                                <DonutChart 
+                                                    data={currentData} 
+                                                    totalCapacity={totalCapacity}
+                                                    theme={theme}
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <div className="text-center">
+                                                        <div className="font-mono mono-nums text-[28px] font-bold leading-none text-[var(--text-primary)]">
+                                                            {coveredHours}/{totalCapacity}
+                                                        </div>
+                                                        <div className="small-label mt-1">hours logged</div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto pr-2">
-                                            <h5 className="subsection mb-4">
-                                                {activeTab === 'categories' ? 'Weekly Breakdown' : `Breakdown for ${viewDate.toDateString()}`}
-                                            </h5>
-                                            <div className="space-y-4">
-                                                {Object.entries(currentData)
-                                                    .sort((a,b) => b[1] - a[1])
-                                                    .filter(([k]) => k !== 'unlogged')
-                                                    .map(([k, val]) => {
-                                                        let percentage = 0;
-                                                        if (k !== 'sleep') {
-                                                            percentage = activeHours > 0 ? Math.round((val / activeHours) * 100) : 0;
-                                                        }
-                                                        if (activeTab === 'daily view' && val === 0) return null;
+                                            <div className="flex-1 min-w-0 lg:overflow-y-auto lg:pr-2">
+                                                <h5 className="subsection mb-4">
+                                                    {activeTab === 'categories' ? 'Weekly Breakdown' : `Breakdown for ${viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`}
+                                                </h5>
+                                                <div className="space-y-4">
+                                                    {Object.entries(currentData)
+                                                        .filter(([, val]) => val > 0)
+                                                        .sort((a,b) => b[1] - a[1])
+                                                        .map(([k, val]) => {
+                                                            const percentage = Math.round((val / totalCapacity) * 100);
+                                                            const catItem = CATEGORIES[k] || CATEGORIES.unlogged;
+                                                            const ListIcon = catItem.icon;
 
-                                                        const catItem = CATEGORIES[k] || CATEGORIES.unlogged;
-                                                        const ListIcon = catItem.icon;
-
-                                                        return (
-                                                            <div key={k} className="flex items-center gap-4">
-                                                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0" style={{backgroundColor: catItem.color}}>
-                                                                    {ListIcon && <ListIcon size={16} />}
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <div className="flex justify-between body-text mb-1">
-                                                                        <span className="font-medium">{catItem.label}</span>
-                                                                        <span className="font-mono text-[var(--text-secondary)]">
-                                                                            {val}h {k !== 'sleep' && <span className="text-sm text-[var(--text-secondary)] ml-1">({percentage}%)</span>}
-                                                                        </span>
+                                                            return (
+                                                                <div key={k} className="flex items-center gap-4">
+                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{backgroundColor: catItem.color, color: catItem.ink}}>
+                                                                        <ListIcon size={16} aria-hidden="true" />
                                                                     </div>
-                                                                    <div className="h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
-                                                                        <div className="h-2 rounded-full" style={{width: `${k === 'sleep' ? 100 : percentage}%`, backgroundColor: catItem.color}}></div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex justify-between gap-3 body-text mb-1">
+                                                                            <span className="font-medium">{catItem.label}</span>
+                                                                            <span className="font-mono mono-nums text-[var(--text-secondary)] shrink-0">
+                                                                                {val}h <span className="text-sm">· {percentage}%</span>
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                                                                            <div className="h-2 rounded-full" style={{width: `${percentage}%`, backgroundColor: catItem.color}}></div>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                {activeTab === 'daily view' && Object.values(currentData).every(v => v === 0) && (
-                                                    <div className="text-[var(--text-secondary)] body-text italic">No data logged for this date.</div>
-                                                )}
+                                                            );
+                                                        })}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )
                                 )}
                             </div>
                         )}
-                    </div>
+                    </aside>
 
                     {/* Modals */}
-                    {modals.log && (
-                        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center modal-fade-in">
-                            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-lg p-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="section-heading">
-                                        Log Activity: {selectedLogHour && (() => {
-                                            const h = selectedLogHour.hour;
-                                            const getAmPm = (hr) => hr >= 12 ? 'PM' : 'AM';
-                                            const get12 = (hr) => hr % 12 || 12;
-                                            return getAmPm(h) === getAmPm((h + 1) % 24) ? `${get12(h)}-${get12((h + 1) % 24)} ${getAmPm(h)}` : `${get12(h)} ${getAmPm(h)}-${get12((h + 1) % 24)} ${getAmPm((h + 1) % 24)}`;
-                                        })()}
-                                    </h3>
-                                    {selectedLogHour && logs[`${getDateKey(new Date(selectedLogHour.date))}_${selectedLogHour.hour}`] && (
-                                        <button onClick={deleteLog} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg text-[#ef4444]" title="Delete Log">
-                                            <Trash size={18} />
-                                        </button>
-                                    )}
+                    {modals.log && selectedLogHour && (
+                        <Modal
+                            labelledBy="log-modal-title"
+                            onClose={() => {
+                                stopAlarm();
+                                setModals(prev => ({ ...prev, log: false }));
+                            }}
+                            onKeyDown={(e) => {
+                                const tag = e.target.tagName;
+                                if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+                                const index = ['1','2','3','4','5','6','7','8'].indexOf(e.key);
+                                if (index >= 0 && loggableCategories[index]) {
+                                    e.preventDefault();
+                                    setLogCategory(loggableCategories[index][0]);
+                                }
+                            }}
+                        >
+                            <div className="flex justify-between items-start gap-4 mb-5">
+                                <div>
+                                    <h3 id="log-modal-title" className="section-heading">Log Activity</h3>
+                                    <p className="small-label mt-1">
+                                        {selectedLogHour.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {hourRangeLabel(selectedLogHour.hour)}
+                                    </p>
                                 </div>
-                                <textarea 
-                                    className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4 mb-6 outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                                    rows="3"
-                                    placeholder="What were you doing?"
-                                    value={logText}
-                                    onChange={e => setLogText(e.target.value)}
-                                />
-                                <div className="grid grid-cols-4 gap-2 mb-6">
-                                    {Object.entries(CATEGORIES).filter(([k]) => k !== 'unlogged').map(([key, cat]) => {
-                                        const BtnIcon = cat.icon;
-                                        return (
-                                            <button 
-                                                key={key}
-                                                onClick={() => setLogCategory(key)}
-                                                className={`py-3 px-2 rounded-lg body-text font-medium transition-all flex flex-col items-center justify-center gap-2 ${logCategory === key ? 'text-white shadow-lg scale-[1.02]' : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
-                                                style={{ backgroundColor: logCategory === key ? cat.color : undefined }}
-                                            >
-                                                {BtnIcon && <BtnIcon size={20} />}
-                                                <span className="text-xs">{cat.label}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex gap-3">
-                                    <button 
-                                        onClick={handleLogSave} 
-                                        className="flex-1 py-3 px-4 rounded-lg font-medium text-white transition-all hover:brightness-110"
-                                        style={{ backgroundColor: CATEGORIES[logCategory]?.color || '#15803d' }}
+                                {selectedExistingLog && (
+                                    <button
+                                        type="button"
+                                        onClick={deleteLog}
+                                        aria-label="Delete this hour's log"
+                                        className="btn-quiet p-2 rounded-lg text-[var(--wasted)]"
                                     >
-                                        Save Log
+                                        <Trash size={18} aria-hidden="true" />
                                     </button>
-                                    <button onClick={() => { stopAlarm(); setModals({...modals, log: false}); }} className="px-6 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-medium rounded-xl hover:bg-[#2f2f2f]">Cancel</button>
-                                </div>
+                                )}
                             </div>
-                        </div>
+                            <textarea 
+                                data-autofocus
+                                aria-label="Note for this hour"
+                                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4 mb-6 outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent resize-none placeholder:text-[var(--text-tertiary)]"
+                                rows="3"
+                                placeholder="What were you doing? (optional)"
+                                value={logText}
+                                onChange={e => setLogText(e.target.value)}
+                            />
+                            <div className="grid grid-cols-4 gap-2 mb-3" role="group" aria-label="Category">
+                                {loggableCategories.map(([key, cat], index) => {
+                                    const BtnIcon = cat.icon;
+                                    const selected = logCategory === key;
+                                    return (
+                                        <button 
+                                            type="button"
+                                            key={key}
+                                            onClick={() => setLogCategory(key)}
+                                            aria-pressed={selected}
+                                            title={`${cat.label} (${index + 1})`}
+                                            className={`relative min-h-[74px] px-2 py-3 rounded-lg text-[13px] font-medium transition-colors flex flex-col items-center justify-center gap-2 ${selected ? 'shadow-lg' : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}
+                                            style={selected ? { backgroundColor: cat.color, color: cat.ink } : undefined}
+                                        >
+                                            <BtnIcon size={20} aria-hidden="true" />
+                                            <span className="leading-tight text-center">{cat.label}</span>
+                                            <span className="absolute top-1.5 right-2 text-[10px] font-mono opacity-60" aria-hidden="true">{index + 1}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="micro-label mb-5">Keys 1–8 choose a category · Esc closes</p>
+                            <div className="flex gap-3">
+                                <button 
+                                    type="button"
+                                    onClick={handleLogSave} 
+                                    disabled={!logCategory}
+                                    className="flex-1 py-3 px-4 rounded-lg font-medium transition-colors disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-tertiary)]"
+                                    style={logCategory ? { backgroundColor: CATEGORIES[logCategory].color, color: CATEGORIES[logCategory].ink } : undefined}
+                                >
+                                    Save Log
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { stopAlarm(); setModals(prev => ({ ...prev, log: false })); }}
+                                    className="btn-quiet px-6 py-3 text-sm font-medium rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </Modal>
                     )}
                     
                     {modals.sleep && (
-                        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center modal-fade-in">
-                            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-lg p-6">
-                                <h3 className="section-heading mb-2">Log Sleep</h3>
-                                <p className="body-text text-[var(--text-secondary)] mb-6">Select hours to mark as sleep for {viewDate.toLocaleDateString()}:</p>
-                                <div className="grid grid-cols-6 gap-2 mb-6">
-                                    {Array.from({length: 24}).map((_, h) => {
-                                        const isSelected = sleepSelection.includes(h);
-                                        const timeLabel = h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h-12}p`;
-                                        return (
-                                            <button
-                                                key={h}
-                                                onClick={() => toggleSleepHour(h)}
-                                                className={`py-3 rounded-lg font-medium transition-all ${isSelected ? 'bg-[var(--sleep)] text-white' : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'}`}
-                                            >
-                                                {timeLabel}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex gap-3">
-                                    <button onClick={saveSleep} className="btn-primary flex-1">Save Sleep</button>
-                                    <button onClick={() => { setModals({...modals, sleep: false}); setSleepSelection([]); }} className="px-6 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-medium rounded-xl hover:bg-[#2f2f2f]">Cancel</button>
-                                </div>
+                        <Modal
+                            labelledBy="sleep-modal-title"
+                            onClose={() => { setModals(prev => ({ ...prev, sleep: false })); setSleepSelection([]); }}
+                        >
+                            <h3 id="sleep-modal-title" className="section-heading mb-1">Log Sleep</h3>
+                            <p className="body-text text-[var(--text-secondary)] mb-5">
+                                Select the hours you slept on {viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}.
+                            </p>
+                            <div className="grid grid-cols-6 gap-2 mb-4">
+                                {Array.from({length: 24}).map((_, h) => {
+                                    const isSelected = sleepSelection.includes(h);
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={h}
+                                            onClick={() => toggleSleepHour(h)}
+                                            aria-pressed={isSelected}
+                                            aria-label={hourRangeLabel(h)}
+                                            className={`py-3 rounded-lg text-sm font-medium transition-colors ${isSelected ? '' : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}
+                                            style={isSelected ? { backgroundColor: CATEGORIES.sleep.color, color: CATEGORIES.sleep.ink } : undefined}
+                                        >
+                                            {hourShortLabel(h)}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        </div>
+                            <p className="micro-label mb-5">
+                                {sleepSelection.length === 0
+                                    ? 'Select at least one hour.'
+                                    : `${sleepSelection.length} ${sleepSelection.length === 1 ? 'hour' : 'hours'} selected${sleepConflicts > 0 ? ` · ${sleepConflicts} already logged ${sleepConflicts === 1 ? 'hour stays' : 'hours stay'} unchanged` : ''}`}
+                            </p>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={saveSleep} disabled={sleepSelection.length === 0} className="btn-primary flex-1 py-3 text-sm font-medium">Save Sleep</button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setModals(prev => ({ ...prev, sleep: false })); setSleepSelection([]); }}
+                                    className="btn-quiet px-6 py-3 text-sm font-medium rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </Modal>
                     )}
 
                     {modals.goals && (
-                        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center modal-fade-in">
-                            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-6">
-                                <h3 className="section-heading mb-6 flex items-center gap-2"><Target className="text-[var(--accent)]" /> Set Daily Goals</h3>
-                                <div className="space-y-4 mb-6">
-                                    <div>
-                                        <label className="small-label uppercase tracking-wider mb-2 block">Productive Hours</label>
-                                        <input 
-                                            type="number" min="1" max="24"
-                                            value={tempGoals.productive}
-                                            onChange={(e) => setTempGoals({...tempGoals, productive: parseInt(e.target.value) || 0})}
-                                            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-3 outline-none focus:ring-2 focus:ring-[var(--accent)] font-mono font-bold text-[var(--text-primary)]"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="small-label uppercase tracking-wider mb-2 block">Sleep Hours</label>
-                                        <input 
-                                            type="number" min="1" max="24"
-                                            value={tempGoals.sleep}
-                                            onChange={(e) => setTempGoals({...tempGoals, sleep: parseInt(e.target.value) || 0})}
-                                            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-3 outline-none focus:ring-2 focus:ring-[var(--accent)] font-mono font-bold text-[var(--text-primary)]"
-                                        />
-                                    </div>
+                        <Modal
+                            labelledBy="goals-modal-title"
+                            maxWidth="max-w-sm"
+                            onClose={() => setModals(prev => ({ ...prev, goals: false }))}
+                        >
+                            <h3 id="goals-modal-title" className="section-heading mb-6 flex items-center gap-2">
+                                <Target className="text-[var(--accent)]" size={20} aria-hidden="true" /> Set Daily Goals
+                            </h3>
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label htmlFor="goal-productive" className="small-label font-medium text-[var(--text-primary)] mb-2 block">Productive hours</label>
+                                    <input 
+                                        id="goal-productive"
+                                        type="number" min="1" max="24" inputMode="numeric"
+                                        value={tempGoals.productive}
+                                        onChange={(e) => setTempGoals({...tempGoals, productive: parseInt(e.target.value) || 0})}
+                                        className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-3 outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent font-mono mono-nums font-bold text-[var(--text-primary)]"
+                                    />
                                 </div>
-                                <div className="flex gap-3">
-                                    <button onClick={saveGoals} className="btn-primary flex-1">Update Goals</button>
-                                    <button onClick={() => setModals({...modals, goals: false})} className="px-6 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-medium rounded-xl hover:bg-[#2f2f2f]">Cancel</button>
+                                <div>
+                                    <label htmlFor="goal-sleep" className="small-label font-medium text-[var(--text-primary)] mb-2 block">Sleep hours</label>
+                                    <input 
+                                        id="goal-sleep"
+                                        type="number" min="1" max="24" inputMode="numeric"
+                                        value={tempGoals.sleep}
+                                        onChange={(e) => setTempGoals({...tempGoals, sleep: parseInt(e.target.value) || 0})}
+                                        className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-3 outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent font-mono mono-nums font-bold text-[var(--text-primary)]"
+                                    />
                                 </div>
                             </div>
-                        </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={saveGoals} className="btn-primary flex-1 py-3 text-sm font-medium">Update Goals</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setModals(prev => ({ ...prev, goals: false }))}
+                                    className="btn-quiet px-6 py-3 text-sm font-medium rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </Modal>
                     )}
                 </div>
             );
